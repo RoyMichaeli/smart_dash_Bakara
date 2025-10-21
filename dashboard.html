@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>דשבורד ניהול קבצי אודיו</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #1a202c;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header h1::before {
+            content: "📊";
+            font-size: 2rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-card .label {
+            color: #718096;
+            font-size: 0.875rem;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .value {
+            color: #2d3748;
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        .stat-card.green .value { color: #48bb78; }
+        .stat-card.yellow .value { color: #ed8936; }
+        .stat-card.red .value { color: #f56565; }
+
+        .controls {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .dataset-select {
+            min-width: 260px;
+        }
+
+        .tabs {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 8px;
+            display: inline-flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .tab-btn {
+            padding: 10px 16px;
+            border: none;
+            background: #edf2f7;
+            color: #4a5568;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .tab-btn.active {
+            background: #3a6ea5;
+            color: #fff;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin: 12px 0 20px 0;
+        }
+
+        .pivot-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 16px;
+            margin-top: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 300px;
+            position: relative;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 12px 45px 12px 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #1f4e79;
+            box-shadow: 0 0 0 3px rgba(31, 78, 121, 0.15);
+        }
+
+        .search-box::after {
+            content: "🔍";
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 18px;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .filter-btn {
+            padding: 10px 20px;
+            background: #3a6ea5;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .filter-btn:hover {
+            background: #2a5a8a;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(58, 110, 165, 0.3);
+        }
+
+        .filter-btn.active {
+            background: #2a5a8a;
+        }
+
+        .add-btn {
+            padding: 12px 24px;
+            background: #3a6ea5;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .add-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 25px rgba(58, 110, 165, 0.35);
+        }
+
+        .upload-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            z-index: 1001;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .upload-modal.active {
+            display: block;
+        }
+
+        .upload-progress {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f7fafc;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #2f855a, #276749);
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+
+        .success-message {
+            color: #48bb78;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .error-message {
+            color: #f56565;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .table-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        thead th {
+            background: #f7fafc;
+            padding: 15px;
+            text-align: right;
+            font-weight: 600;
+            color: #4a5568;
+            border-bottom: 2px solid #e2e8f0;
+            position: sticky;
+            top: 0;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        thead th:hover {
+            background: #edf2f7;
+        }
+
+        thead th.sortable::after {
+            content: " ↕";
+            opacity: 0.5;
+            font-size: 12px;
+        }
+
+        tbody tr {
+            transition: all 0.3s ease;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        tbody tr:hover {
+            background: #f7fafc;
+            transform: scale(1.01);
+        }
+
+        tbody td {
+            padding: 15px;
+            color: #2d3748;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .status-badge.success {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .status-badge.warning {
+            background: #fed7aa;
+            color: #7c2d12;
+        }
+
+        .status-badge.error {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            padding: 8px 12px;
+            background: #edf2f7;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn:hover {
+            background: #cbd5e0;
+            transform: translateY(-2px);
+        }
+
+        .action-btn.edit { color: #2b6cb0; }
+        .action-btn.view { color: #2f855a; }
+        .action-btn.delete { color: #c53030; }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            color: #2d3748;
+            font-size: 1.5rem;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #718096;
+            transition: color 0.3s ease;
+        }
+
+        .close-btn:hover {
+            color: #2d3748;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #4a5568;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #1f4e79;
+            box-shadow: 0 0 0 3px rgba(31, 78, 121, 0.15);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .btn-primary {
+            padding: 10px 20px;
+            background: #3a6ea5;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(58, 110, 165, 0.3);
+        }
+
+        .btn-secondary {
+            padding: 10px 20px;
+            background: #e2e8f0;
+            color: #4a5568;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e0;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px;
+            color: #718096;
+        }
+
+        .empty-state img {
+            width: 200px;
+            opacity: 0.5;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .controls {
+                flex-direction: column;
+            }
+
+            .search-box {
+                width: 100%;
+            }
+
+            .filter-buttons {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .table-container {
+                padding: 10px;
+            }
+
+            thead th, tbody td {
+                padding: 10px;
+                font-size: 14px;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>מערכת ניהול קבצי אודיו</h1>
+            <p style="color: #4a5568;">ניהול וניתוח מתקדם של קבצי שיחות</p>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="label">סה"כ קבצים</div>
+                <div class="value" id="totalFiles">0</div>
+            </div>
+            <div class="stat-card green">
+                <div class="label">תקינים</div>
+                <div class="value" id="validFiles">0</div>
+            </div>
+            <div class="stat-card yellow">
+                <div class="label">טעונים שיפור</div>
+                <div class="value" id="improvementFiles">0</div>
+            </div>
+            <div class="stat-card red">
+                <div class="label">לא תקינים</div>
+                <div class="value" id="invalidFiles">0</div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <div>
+                <label for="datasetSelector" class="label" style="display:block;margin-bottom:6px">Dataset</label>
+                <select id="datasetSelector" class="dataset-select" onchange="onDatasetChange(this.value)"></select>
+            </div>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="חיפוש לפי שם קובץ..." />
+            </div>
+            <div class="filter-buttons">
+                <button class="filter-btn active" onclick="filterByStatus('all', this)">הכל</button>
+                <button class="filter-btn" onclick="filterByStatus('valid', this)">תקינים</button>
+                <button class="filter-btn" onclick="filterByStatus('improvement', this)">טעונים שיפור</button>
+                <button class="filter-btn" onclick="filterByStatus('invalid', this)">לא תקינים</button>
+            </div>
+            <button class="add-btn" onclick="openModal()">➕ הוסף רשומה</button>
+            <button class="add-btn" onclick="triggerExcelImport()">📥 ייבוא אקסל</button>
+            <input type="file" id="excelInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleExcelFile(this.files)" />
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" id="tabDataBtn" onclick="switchTab('data')">נתונים</button>
+            <button class="tab-btn" id="tabAnalyticsBtn" onclick="switchTab('analytics')">ניתוח</button>
+            <button class="tab-btn" id="tabCompareBtn" onclick="switchTab('compare')">השוואה</button>
+        </div>
+
+        <!-- Data Tab -->
+        <div class="tab-content active" id="dataTab">
+            <div class="table-container">
+                <table id="dataTable">
+                    <thead>
+                        <tr>
+                            <th class="sortable" onclick="sortTable('fileName')">שם הקובץ</th>
+                            <th class="sortable" onclick="sortTable('status')">סטטוס סופי</th>
+                            <th>הסבר שיטות</th>
+                            <th>הסבר חיוב</th>
+                            <th>כתובת</th>
+                            <th class="sortable" onclick="sortTable('birthDate')">תאריך לידה</th>
+                            <th>הבטחת זכייה</th>
+                            <th>אשראי</th>
+                            <th>שיקוף שיחה</th>
+                            <th>תמלול</th>
+                            <th>פעולות</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <!-- Data will be populated here -->
+                    </tbody>
+                </table>
+                <div class="empty-state" id="emptyState" style="display: none;">
+                    <p style="font-size: 48px;">📁</p>
+                    <h3>אין נתונים להצגה</h3>
+                    <p>הוסף רשומות חדשות כדי להתחיל</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytics Tab -->
+        <div class="tab-content" id="analyticsTab">
+            <div class="controls" style="margin-top:0">
+                <div>
+                    <label class="label" style="display:block;margin-bottom:6px">שדה לקיבוץ</label>
+                    <select id="analyticsDim" class="dataset-select" onchange="renderAnalytics()"></select>
+                </div>
+                <div>
+                    <label class="label" style="display:block;margin-bottom:6px">שדה לעמודות (Pivot)</label>
+                    <select id="analyticsColDim" class="dataset-select" onchange="renderAnalytics()"></select>
+                </div>
+            </div>
+            <div class="kpi-grid" id="analyticsKpis"></div>
+            <div class="table-container">
+                <canvas id="analyticsChart" height="120"></canvas>
+            </div>
+            <div class="pivot-container">
+                <div style="font-weight:600;color:#4a5568;margin-bottom:10px">Pivot</div>
+                <div id="pivotTable"></div>
+            </div>
+        </div>
+
+        <!-- Compare Tab -->
+        <div class="tab-content" id="compareTab">
+            <div class="controls" style="margin-top:0">
+                <div>
+                    <label class="label" style="display:block;margin-bottom:6px">Dataset A</label>
+                    <select id="compareA" class="dataset-select" onchange="renderCompare()"></select>
+                </div>
+                <div>
+                    <label class="label" style="display:block;margin-bottom:6px">Dataset B</label>
+                    <select id="compareB" class="dataset-select" onchange="renderCompare()"></select>
+                </div>
+            </div>
+            <div class="kpi-grid" id="compareKpis"></div>
+            <div class="table-container">
+                <canvas id="compareChart" height="120"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Modal -->
+    <div class="upload-modal" id="uploadModal">
+        <h2 style="margin-bottom: 10px; color: #2d3748;">ייבוא קובץ אקסל</h2>
+        <p style="color:#4a5568">מעלה ומעבד את הקובץ, אנא המתן...</p>
+        <div class="upload-progress">
+            <div class="progress-bar">
+                <div class="progress-fill" id="uploadProgressFill" style="width:0%"></div>
+            </div>
+            <div id="uploadPercent" style="color:#4a5568">0%</div>
+            <div class="success-message" id="uploadSuccess" style="display:none">✅ הייבוא הושלם בהצלחה</div>
+            <div class="error-message" id="uploadError" style="display:none"></div>
+            <div style="margin-top:10px">
+                <button class="btn-secondary" onclick="hideUploadModal()">סגור</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">הוסף רשומה חדשה</h2>
+                <button class="close-btn" onclick="closeModal()">✕</button>
+            </div>
+            <form id="recordForm">
+                <div class="form-group">
+                    <label>שם הקובץ</label>
+                    <input type="text" id="fileName" required />
+                </div>
+                <div class="form-group">
+                    <label>סטטוס סופי</label>
+                    <select id="status" required>
+                        <option value="">בחר סטטוס</option>
+                        <option value="תקין">תקין</option>
+                        <option value="טעון שיפור">טעון שיפור</option>
+                        <option value="לא תקין">לא תקין</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>הסבר שיטות</label>
+                    <textarea id="methods"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>הסבר חיוב</label>
+                    <input type="text" id="charge" />
+                </div>
+                <div class="form-group">
+                    <label>כתובת</label>
+                    <input type="text" id="address" />
+                </div>
+                <div class="form-group">
+                    <label>תאריך לידה</label>
+                    <input type="date" id="birthDate" />
+                </div>
+                <div class="form-group">
+                    <label>הבטחת זכייה</label>
+                    <input type="text" id="winPromise" />
+                </div>
+                <div class="form-group">
+                    <label>אשראי</label>
+                    <input type="text" id="credit" />
+                </div>
+                <div class="form-group">
+                    <label>שיקוף שיחה</label>
+                    <textarea id="reflection"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>תמלול</label>
+                    <textarea id="transcript"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal()">ביטול</button>
+                    <button type="submit" class="btn-primary">שמור</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Datasets state
+        let datasetsIndex = {}; // { id: { id, name, createdAt, fields, numRecords, statusCounts } }
+        let activeDatasetId = null;
+        let data = []; // active dataset records
+        let filteredData = [];
+        let currentFilter = 'all';
+        let currentSort = { column: null, ascending: true };
+        let editingIndex = -1;
+        let chartJsLoaded = false;
+        let analyticsChartInstance = null;
+        let compareChartInstance = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadInitialState();
+            
+            // Search functionality
+            document.getElementById('searchInput').addEventListener('input', function(e) {
+                const searchTerm = e.target.value.toLowerCase();
+                filteredData = data.filter(item => {
+                    if (currentFilter !== 'all') {
+                        if (!matchesFilter(item, currentFilter)) return false;
+                    }
+                    return item.fileName.toLowerCase().includes(searchTerm);
+                });
+                renderTable();
+            });
+
+            // Form submission
+            document.getElementById('recordForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                saveRecord();
+            });
+
+            // Defensive: ensure no stray overlays block clicks on initial load
+            try { document.getElementById('modal')?.classList.remove('active'); } catch (_) {}
+            try { document.getElementById('uploadModal')?.classList.remove('active'); } catch (_) {}
+
+            // Accessibility & safety: allow closing overlays with ESC
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    hideUploadModal();
+                    closeModal();
+                }
+            });
+        });
+
+        function loadInitialState() {
+            const savedActiveId = localStorage.getItem('activeDatasetId');
+            const savedCompareA = localStorage.getItem('compareA');
+            const savedCompareB = localStorage.getItem('compareB');
+            const savedDim = localStorage.getItem('analyticsDim');
+            const savedColDim = localStorage.getItem('analyticsColDim');
+            fetchDatasets().then(() => {
+                if (savedActiveId && datasetsIndex[savedActiveId]) {
+                    setActiveDataset(savedActiveId).then(() => {
+                        // Restore analytics selectors if exist
+                        if (savedDim) setSelectValueSafely(document.getElementById('analyticsDim'), savedDim);
+                        if (savedColDim) setSelectValueSafely(document.getElementById('analyticsColDim'), savedColDim);
+                        renderAnalytics();
+                    });
+                } else {
+                    const firstId = Object.keys(datasetsIndex)[0];
+                    if (firstId) setActiveDataset(firstId);
+                    else {
+                        data = [];
+                        filteredData = [];
+                        renderTable();
+                        updateStatistics();
+                        refreshSelectors();
+                    }
+                }
+                // Restore compare selection
+                if (savedCompareA) setSelectValueSafely(document.getElementById('compareA'), savedCompareA);
+                if (savedCompareB) setSelectValueSafely(document.getElementById('compareB'), savedCompareB);
+            });
+        }
+
+        function saveUiState() {
+            if (activeDatasetId) localStorage.setItem('activeDatasetId', activeDatasetId);
+        }
+
+        async function fetchDatasets() {
+            const res = await fetch('/api/datasets');
+            const json = await res.json();
+            const list = json.datasets || [];
+            datasetsIndex = {};
+            for (const ds of list) datasetsIndex[ds.id] = ds;
+            refreshSelectors();
+        }
+
+        async function fetchDatasetRecords(id) {
+            const res = await fetch('/api/dataset/' + encodeURIComponent(id));
+            const json = await res.json();
+            return json.records || [];
+        }
+
+        async function setActiveDataset(id) {
+            activeDatasetId = id;
+            saveUiState();
+            data = await fetchDatasetRecords(id);
+            filteredData = [...data];
+            renderTable();
+            updateStatistics();
+            refreshAnalyticsControls();
+            // Ensure analytics defaults
+            const dimEl = document.getElementById('analyticsDim');
+            if (dimEl && !dimEl.value) dimEl.value = 'status';
+            const colEl = document.getElementById('analyticsColDim');
+            if (colEl && colEl.value === undefined) colEl.value = '';
+            return true;
+        }
+
+        function onDatasetChange(id) {
+            if (!id) return;
+            setActiveDataset(id);
+        }
+
+        function refreshSelectors() {
+            const selector = document.getElementById('datasetSelector');
+            const options = Object.values(datasetsIndex).map(ds => `<option value="${ds.id}">${escapeHtml(ds.name)} (${ds.numRecords || 0})</option>`).join('');
+            const prevActive = selector ? selector.value : '';
+            if (selector) {
+                selector.innerHTML = options;
+                selector.value = activeDatasetId || prevActive || '';
+            }
+
+            const cmpA = document.getElementById('compareA');
+            const cmpB = document.getElementById('compareB');
+            const opts = '<option value="">בחר</option>' + options;
+            const prevA = cmpA ? cmpA.value : '';
+            const prevB = cmpB ? cmpB.value : '';
+            if (cmpA) { cmpA.innerHTML = opts; setSelectValueSafely(cmpA, prevA); }
+            if (cmpB) { cmpB.innerHTML = opts; setSelectValueSafely(cmpB, prevB); }
+        }
+
+        function escapeHtml(str) {
+            return String(str || '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[s]));
+        }
+
+        function setSelectValueSafely(selectEl, value) {
+            if (!selectEl) return;
+            if (!value) return;
+            const has = Array.from(selectEl.options).some(o => o.value === value);
+            if (has) selectEl.value = value;
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            const emptyState = document.getElementById('emptyState');
+            
+            if (filteredData.length === 0) {
+                tbody.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+            
+            emptyState.style.display = 'none';
+            tbody.innerHTML = filteredData.map((item, index) => `
+                <tr>
+                    <td><strong>${item.fileName}</strong></td>
+                    <td>${getStatusBadge(item.status)}</td>
+                    <td>${item.methods || '-'}</td>
+                    <td>${item.charge || '-'}</td>
+                    <td>${item.address || '-'}</td>
+                    <td>${item.birthDate || '-'}</td>
+                    <td>${item.winPromise || '-'}</td>
+                    <td>${item.credit || '-'}</td>
+                    <td>${item.reflection ? '✓' : '-'}</td>
+                    <td>${item.transcript ? '✓' : '-'}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="action-btn view" onclick="viewRecord(${index})" title="צפייה">👁️</button>
+                            <button class="action-btn edit" onclick="editRecord(${index})" title="עריכה">✏️</button>
+                            <button class="action-btn delete" onclick="deleteRecord(${index})" title="מחיקה">🗑️</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function getStatusBadge(status) {
+            const statusMap = {
+                'תקין': 'success',
+                'טעון שיפור': 'warning',
+                'לא תקין': 'error'
+            };
+            const className = statusMap[status] || 'error';
+            return `<span class="status-badge ${className}">${status}</span>`;
+        }
+
+        function updateStatistics() {
+            const total = data.length;
+            const valid = data.filter(item => item.status === 'תקין').length;
+            const improvement = data.filter(item => item.status === 'טעון שיפור').length;
+            const invalid = data.filter(item => item.status === 'לא תקין').length;
+            document.getElementById('totalFiles').textContent = total;
+            document.getElementById('validFiles').textContent = valid;
+            document.getElementById('improvementFiles').textContent = improvement;
+            document.getElementById('invalidFiles').textContent = invalid;
+        }
+
+        function filterByStatus(status, btnEl) {
+            currentFilter = status;
+            
+            // Update active button
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            if (btnEl) {
+                btnEl.classList.add('active');
+            }
+            
+            // Filter data
+            if (status === 'all') {
+                filteredData = [...data];
+            } else {
+                filteredData = data.filter(item => matchesFilter(item, status));
+            }
+            
+            // Apply search if exists
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            if (searchTerm) {
+                filteredData = filteredData.filter(item => 
+                    item.fileName.toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            renderTable();
+        }
+
+        function matchesFilter(item, filter) {
+            switch(filter) {
+                case 'valid': return item.status === 'תקין';
+                case 'improvement': return item.status === 'טעון שיפור';
+                case 'invalid': return item.status === 'לא תקין';
+                default: return true;
+            }
+        }
+
+        function sortTable(column) {
+            if (currentSort.column === column) {
+                currentSort.ascending = !currentSort.ascending;
+            } else {
+                currentSort.column = column;
+                currentSort.ascending = true;
+            }
+            
+            filteredData.sort((a, b) => {
+                let aVal = a[column] || '';
+                let bVal = b[column] || '';
+                
+                if (column === 'birthDate') {
+                    aVal = new Date(aVal || '1900-01-01');
+                    bVal = new Date(bVal || '1900-01-01');
+                }
+                
+                if (aVal < bVal) return currentSort.ascending ? -1 : 1;
+                if (aVal > bVal) return currentSort.ascending ? 1 : -1;
+                return 0;
+            });
+            
+            renderTable();
+        }
+
+        function openModal() {
+            document.getElementById('modal').classList.add('active');
+            document.getElementById('modalTitle').textContent = 'הוסף רשומה חדשה';
+            document.getElementById('recordForm').reset();
+            editingIndex = -1;
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('active');
+            document.getElementById('recordForm').reset();
+            editingIndex = -1;
+        }
+
+        function saveRecord() {
+            const record = {
+                fileName: document.getElementById('fileName').value,
+                status: document.getElementById('status').value,
+                methods: document.getElementById('methods').value,
+                charge: document.getElementById('charge').value,
+                address: document.getElementById('address').value,
+                birthDate: document.getElementById('birthDate').value,
+                winPromise: document.getElementById('winPromise').value,
+                credit: document.getElementById('credit').value,
+                reflection: document.getElementById('reflection').value,
+                transcript: document.getElementById('transcript').value
+            };
+            
+            if (editingIndex >= 0) {
+                // Update existing record
+                const originalIndex = data.findIndex(item => item === filteredData[editingIndex]);
+                data[originalIndex] = record;
+            } else {
+                // Add new record
+                data.push(record);
+            }
+            
+            // Reset filter and refresh
+            currentFilter = 'all';
+            filteredData = [...data];
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.textContent === 'הכל') btn.classList.add('active');
+            });
+            
+            renderTable();
+            updateStatistics();
+            closeModal();
+        }
+
+        function viewRecord(index) {
+            const record = filteredData[index];
+            alert(`פרטי הרשומה:\n\nשם קובץ: ${record.fileName}\nסטטוס: ${record.status}\nכתובת: ${record.address || 'לא צוין'}\nתאריך לידה: ${record.birthDate || 'לא צוין'}`);
+        }
+
+        function editRecord(index) {
+            const record = filteredData[index];
+            editingIndex = index;
+            
+            document.getElementById('modalTitle').textContent = 'ערוך רשומה';
+            document.getElementById('fileName').value = record.fileName;
+            document.getElementById('status').value = record.status;
+            document.getElementById('methods').value = record.methods;
+            document.getElementById('charge').value = record.charge;
+            document.getElementById('address').value = record.address;
+            document.getElementById('birthDate').value = record.birthDate;
+            document.getElementById('winPromise').value = record.winPromise;
+            document.getElementById('credit').value = record.credit;
+            document.getElementById('reflection').value = record.reflection;
+            document.getElementById('transcript').value = record.transcript;
+            
+            document.getElementById('modal').classList.add('active');
+        }
+
+        function deleteRecord(index) {
+            if (confirm('האם אתה בטוח שברצונך למחוק רשומה זו?')) {
+                const originalIndex = data.findIndex(item => item === filteredData[index]);
+                data.splice(originalIndex, 1);
+                filteredData = [...data];
+                renderTable();
+                updateStatistics();
+            }
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+
+        // Excel import helpers
+        function triggerExcelImport() {
+            const input = document.getElementById('excelInput');
+            input.value = '';
+            input.click();
+        }
+
+        function handleExcelFile(fileList) {
+            if (!fileList || !fileList[0]) return;
+            const file = fileList[0];
+            showUploadModal();
+            setUploadProgress(0);
+            uploadExcel(file);
+        }
+
+        function showUploadModal() {
+            document.getElementById('uploadModal').classList.add('active');
+            document.getElementById('uploadSuccess').style.display = 'none';
+            const err = document.getElementById('uploadError');
+            err.textContent = '';
+            err.style.display = 'none';
+        }
+
+        function hideUploadModal() {
+            document.getElementById('uploadModal').classList.remove('active');
+        }
+
+        function setUploadProgress(percent) {
+            const p = Math.max(0, Math.min(100, percent|0));
+            document.getElementById('uploadProgressFill').style.width = p + '%';
+            document.getElementById('uploadPercent').textContent = p + '%';
+        }
+
+        function showUploadSuccess(message) {
+            const el = document.getElementById('uploadSuccess');
+            el.textContent = message || 'הייבוא הושלם בהצלחה';
+            el.style.display = 'block';
+        }
+
+        function showUploadError(message) {
+            const el = document.getElementById('uploadError');
+            el.textContent = message || 'אירעה שגיאה בתהליך הייבוא';
+            el.style.display = 'block';
+        }
+
+        function uploadExcel(file) {
+            const form = new FormData();
+            form.append('file', file);
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/upload-excel');
+
+            xhr.upload.onprogress = function (e) {
+                if (e.lengthComputable) {
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    setUploadProgress(percent);
+                }
+            };
+
+            xhr.onload = function () {
+                try {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        const resp = JSON.parse(xhr.responseText || '{}');
+                        if (resp && resp.error) {
+                            showUploadError(resp.error);
+                        } else if (resp && resp.datasetId && resp.dataset) {
+                            // New shape
+                            fetchDatasets().then(() => {
+                                setActiveDataset(resp.datasetId);
+                                // Auto-assign to Compare A/B if empty
+                                const cmpA = document.getElementById('compareA');
+                                const cmpB = document.getElementById('compareB');
+                                if (cmpA && !cmpA.value) { cmpA.value = resp.datasetId; localStorage.setItem('compareA', resp.datasetId); }
+                                else if (cmpB && !cmpB.value) { cmpB.value = resp.datasetId; localStorage.setItem('compareB', resp.datasetId); }
+                                // Reflect in dataset selector
+                                const selector = document.getElementById('datasetSelector');
+                                if (selector) selector.value = resp.datasetId;
+                            });
+                            setUploadProgress(100);
+                            showUploadSuccess('הייבוא הושלם בהצלחה');
+                            setTimeout(hideUploadModal, 900);
+                            // If debug info exists, log it to console for troubleshooting
+                            if (resp.debug) {
+                                console.log('Upload debug:', resp.debug);
+                            }
+                        } else if (resp && Array.isArray(resp.records)) {
+                            // Backward compatibility: old shape
+                            data = resp.records;
+                            filteredData = [...data];
+                            renderTable();
+                            updateStatistics();
+                            setUploadProgress(100);
+                            showUploadSuccess('הייבוא הושלם בהצלחה');
+                            setTimeout(hideUploadModal, 900);
+                        } else {
+                            showUploadError('מבנה התגובה מהשרת לא תקין');
+                        }
+                    } else {
+                        showUploadError('שגיאה מהשרת (' + xhr.status + ')');
+                    }
+                } catch (err) {
+                    showUploadError('שגיאה בעיבוד התגובה');
+                }
+            };
+
+            xhr.onerror = function () {
+                showUploadError('שגיאת רשת במהלך ההעלאה');
+            };
+
+            xhr.send(form);
+        }
+
+        // Tabs
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            if (tab === 'data') {
+                document.getElementById('tabDataBtn').classList.add('active');
+                document.getElementById('dataTab').classList.add('active');
+            } else if (tab === 'analytics') {
+                document.getElementById('tabAnalyticsBtn').classList.add('active');
+                document.getElementById('analyticsTab').classList.add('active');
+                ensureChartJs().then(renderAnalytics);
+            } else if (tab === 'compare') {
+                document.getElementById('tabCompareBtn').classList.add('active');
+                document.getElementById('compareTab').classList.add('active');
+                ensureChartJs().then(renderCompare);
+            }
+        }
+
+        function ensureChartJs() {
+            if (chartJsLoaded) return Promise.resolve();
+            return new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+                s.onload = () => { chartJsLoaded = true; resolve(); };
+                s.onerror = reject;
+                document.body.appendChild(s);
+            });
+        }
+
+        // Analytics
+        function refreshAnalyticsControls() {
+            const fields = Object.keys(data[0] || {});
+            const dim = document.getElementById('analyticsDim');
+            const colDim = document.getElementById('analyticsColDim');
+            const opts = fields.map(f => `<option value="${f}">${f}</option>`).join('');
+            if (dim) {
+                dim.innerHTML = '<option value="status">status</option>' + opts;
+                // Restore saved choice if exists
+                const savedDim = localStorage.getItem('analyticsDim');
+                if (savedDim) setSelectValueSafely(dim, savedDim);
+                if (!dim.value) dim.value = 'status';
+            }
+            if (colDim) {
+                colDim.innerHTML = '<option value=""></option>' + opts;
+                const savedCol = localStorage.getItem('analyticsColDim');
+                if (savedCol) setSelectValueSafely(colDim, savedCol);
+            }
+        }
+
+        function groupBy(arr, key) {
+            const out = {};
+            for (const r of arr) {
+                const k = String(r[key] ?? '');
+                out[k] = (out[k] || 0) + 1;
+            }
+            return out;
+        }
+
+        function renderAnalytics() {
+            const dim = document.getElementById('analyticsDim').value || 'status';
+            const colDim = document.getElementById('analyticsColDim').value || '';
+            localStorage.setItem('analyticsDim', dim);
+            localStorage.setItem('analyticsColDim', colDim);
+            const kpis = document.getElementById('analyticsKpis');
+            const total = data.length;
+            const valid = data.filter(r => r.status === 'תקין').length;
+            const improvement = data.filter(r => r.status === 'טעון שיפור').length;
+            const invalid = data.filter(r => r.status === 'לא תקין').length;
+            kpis.innerHTML = `
+                <div class="stat-card"><div class="label">סה"כ</div><div class="value">${total}</div></div>
+                <div class="stat-card green"><div class="label">תקינים</div><div class="value">${valid}</div></div>
+                <div class="stat-card yellow"><div class="label">טעון שיפור</div><div class="value">${improvement}</div></div>
+                <div class="stat-card red"><div class="label">לא תקין</div><div class="value">${invalid}</div></div>
+            `;
+
+            const ctx = document.getElementById('analyticsChart').getContext('2d');
+            const counts = groupBy(data, dim);
+            const labels = Object.keys(counts);
+            const values = labels.map(l => counts[l]);
+            if (analyticsChartInstance) analyticsChartInstance.destroy();
+            analyticsChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: { labels, datasets: [{ label: 'Count', data: values, backgroundColor: '#1f4e79' }] },
+                options: { responsive: true, plugins: { legend: { display: false } } }
+            });
+
+            // Pivot
+            const pivotEl = document.getElementById('pivotTable');
+            if (!colDim) {
+                pivotEl.innerHTML = '';
+                return;
+            }
+            const matrix = {};
+            const rowKeys = new Set();
+            const colKeys = new Set();
+            for (const r of data) {
+                const rk = String(r[dim] ?? '');
+                const ck = String(r[colDim] ?? '');
+                rowKeys.add(rk); colKeys.add(ck);
+                matrix[rk] = matrix[rk] || {};
+                matrix[rk][ck] = (matrix[rk][ck] || 0) + 1;
+            }
+            const rows = Array.from(rowKeys);
+            const cols = Array.from(colKeys);
+            let html = '<table><thead><tr><th>' + dim + '</th>' + cols.map(c => `<th>${escapeHtml(c)}</th>`).join('') + '<th>סה"כ</th></tr></thead><tbody>';
+            for (const rKey of rows) {
+                let rowTotal = 0;
+                const cells = cols.map(c => {
+                    const v = (matrix[rKey] && matrix[rKey][c]) || 0;
+                    rowTotal += v; return `<td>${v}</td>`;
+                }).join('');
+                html += `<tr><td><strong>${escapeHtml(rKey)}</strong></td>${cells}<td>${rowTotal}</td></tr>`;
+            }
+            const colTotals = cols.map(c => rows.reduce((acc, r) => acc + ((matrix[r] && matrix[r][c]) || 0), 0));
+            const grandTotal = colTotals.reduce((a, b) => a + b, 0);
+            html += `<tr><td><strong>סה"כ</strong></td>${colTotals.map(v => `<td>${v}</td>`).join('')}<td>${grandTotal}</td></tr>`;
+            html += '</tbody></table>';
+            pivotEl.innerHTML = html;
+        }
+
+        // Compare
+        async function renderCompare() {
+            const idA = document.getElementById('compareA').value;
+            const idB = document.getElementById('compareB').value;
+            localStorage.setItem('compareA', idA || '');
+            localStorage.setItem('compareB', idB || '');
+            if (!idA || !idB || idA === idB) {
+                document.getElementById('compareKpis').innerHTML = '';
+                const ctx = document.getElementById('compareChart').getContext('2d');
+                if (compareChartInstance) compareChartInstance.destroy();
+                compareChartInstance = new Chart(ctx, { type: 'bar', data: { labels: [], datasets: [] } });
+                return;
+            }
+            const [recA, recB] = await Promise.all([fetchDatasetRecords(idA), fetchDatasetRecords(idB)]);
+            const k = (recs) => ({
+                total: recs.length,
+                valid: recs.filter(r => r.status === 'תקין').length,
+                improvement: recs.filter(r => r.status === 'טעון שיפור').length,
+                invalid: recs.filter(r => r.status === 'לא תקין').length
+            });
+            const a = k(recA), b = k(recB);
+            document.getElementById('compareKpis').innerHTML = `
+                <div class="stat-card"><div class="label">A סה"כ</div><div class="value">${a.total}</div></div>
+                <div class="stat-card"><div class="label">B סה"כ</div><div class="value">${b.total}</div></div>
+                <div class="stat-card green"><div class="label">A תקין</div><div class="value">${a.valid}</div></div>
+                <div class="stat-card green"><div class="label">B תקין</div><div class="value">${b.valid}</div></div>
+                <div class="stat-card yellow"><div class="label">A טעון שיפור</div><div class="value">${a.improvement}</div></div>
+                <div class="stat-card yellow"><div class="label">B טעון שיפור</div><div class="value">${b.improvement}</div></div>
+                <div class="stat-card red"><div class="label">A לא תקין</div><div class="value">${a.invalid}</div></div>
+                <div class="stat-card red"><div class="label">B לא תקין</div><div class="value">${b.invalid}</div></div>
+            `;
+            const ctx = document.getElementById('compareChart').getContext('2d');
+            if (compareChartInstance) compareChartInstance.destroy();
+            compareChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['סה"כ','תקין','טעון שיפור','לא תקין'],
+                    datasets: [
+                        { label: 'A', backgroundColor: '#3a6ea5', borderColor: '#2a5a8a', data: [a.total,a.valid,a.improvement,a.invalid] },
+                        { label: 'B', backgroundColor: '#d97706', borderColor: '#b45309', data: [b.total,b.valid,b.improvement,b.invalid] }
+                    ]
+                },
+                options: { responsive: true }
+            });
+        }
+    </script>
+</body>
+</html>
