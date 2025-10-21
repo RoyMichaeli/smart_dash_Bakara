@@ -14,6 +14,8 @@ const port = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+// Reduce fingerprinting surface
+app.disable('x-powered-by');
 
 // Serve static frontend files
 app.use(express.static(__dirname));
@@ -344,6 +346,19 @@ app.get('/api/dataset/:id', (req, res) => {
     fields: ds.fields || [],
     records: ds.records || []
   });
+});
+
+// Lightweight health endpoint for deploy platforms/load balancers
+app.get('/healthz', (_req, res) => {
+  try {
+    // Basic readiness: server booted and in-memory index exists
+    if (typeof datasetsIndex === 'object') {
+      return res.status(200).send('ok');
+    }
+    return res.status(500).send('unhealthy');
+  } catch (_err) {
+    return res.status(500).send('unhealthy');
+  }
 });
 
 // Fallback: serve dashboard.html at root
