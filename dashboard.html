@@ -820,6 +820,140 @@
                 padding: 20px;
             }
         }
+
+        /* ===== Deep Comparison Styles ===== */
+        .compare-header {
+            display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-bottom: 20px;
+        }
+        .compare-header select { flex: 1; min-width: 180px; }
+        .compare-header .compare-run-btn {
+            background: linear-gradient(135deg, #3a6ea5, #2563eb); color: #fff;
+            border: none; border-radius: 10px; padding: 10px 24px; font-size: 15px;
+            cursor: pointer; font-weight: 600; transition: .2s;
+        }
+        .compare-header .compare-run-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37,99,235,.3); }
+        .compare-header .compare-label { font-weight: 600; color: #4a5568; white-space: nowrap; }
+        .compare-header .compare-badge {
+            display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700;
+        }
+        .compare-badge.ai { background: #ebf5ff; color: #2563eb; }
+        .compare-badge.human { background: #fef3c7; color: #d97706; }
+
+        .compare-summary-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 14px; margin-bottom: 24px;
+        }
+        .compare-summary-card {
+            background: #fff; border-radius: 14px; padding: 18px; text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,.06); border: 2px solid transparent; transition: .2s;
+        }
+        .compare-summary-card:hover { border-color: #e2e8f0; }
+        .compare-summary-card .csc-value { font-size: 2rem; font-weight: 800; }
+        .compare-summary-card .csc-label { font-size: 13px; color: #718096; margin-top: 4px; }
+        .compare-summary-card.green .csc-value { color: #38a169; }
+        .compare-summary-card.yellow .csc-value { color: #d69e2e; }
+        .compare-summary-card.red .csc-value { color: #e53e3e; }
+        .compare-summary-card.blue .csc-value { color: #3182ce; }
+
+        .accuracy-meter {
+            width: 100%; height: 10px; background: #e2e8f0; border-radius: 5px; overflow: hidden; margin-top: 8px;
+        }
+        .accuracy-meter .fill { height: 100%; border-radius: 5px; transition: width .5s ease; }
+        .accuracy-meter .fill.green { background: linear-gradient(90deg, #48bb78, #38a169); }
+        .accuracy-meter .fill.yellow { background: linear-gradient(90deg, #ecc94b, #d69e2e); }
+        .accuracy-meter .fill.red { background: linear-gradient(90deg, #fc8181, #e53e3e); }
+
+        .section-accuracy-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px; margin-bottom: 24px;
+        }
+        .section-accuracy-card {
+            background: #fff; border-radius: 12px; padding: 14px; box-shadow: 0 2px 6px rgba(0,0,0,.05);
+        }
+        .section-accuracy-card .sa-label { font-size: 14px; font-weight: 600; color: #2d3748; margin-bottom: 6px; }
+        .section-accuracy-card .sa-value { font-size: 1.5rem; font-weight: 800; }
+
+        .compare-records-table {
+            width: 100%; border-collapse: separate; border-spacing: 0;
+            background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.06);
+        }
+        .compare-records-table th {
+            background: #f7fafc; padding: 12px 14px; font-size: 13px; color: #4a5568;
+            font-weight: 700; text-align: right; border-bottom: 2px solid #e2e8f0;
+        }
+        .compare-records-table td {
+            padding: 10px 14px; font-size: 14px; border-bottom: 1px solid #edf2f7; vertical-align: middle;
+        }
+        .compare-records-table tr:hover td { background: #f7fafc; }
+        .compare-records-table .match-icon { font-size: 18px; text-align: center; }
+        .compare-records-table .drill-btn {
+            background: #edf2f7; border: none; border-radius: 8px; padding: 6px 14px;
+            cursor: pointer; font-size: 13px; font-weight: 600; color: #4a5568; transition: .15s;
+        }
+        .compare-records-table .drill-btn:hover { background: #e2e8f0; color: #2d3748; }
+
+        .drill-modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 2000;
+            display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: .2s;
+        }
+        .drill-modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .drill-modal {
+            background: #fff; border-radius: 18px; max-width: 900px; width: 95%; max-height: 85vh;
+            overflow-y: auto; padding: 30px; box-shadow: 0 20px 60px rgba(0,0,0,.2); position: relative;
+        }
+        .drill-modal .close-btn {
+            position: absolute; top: 14px; left: 14px; background: #edf2f7; border: none;
+            border-radius: 50%; width: 36px; height: 36px; font-size: 18px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; transition: .15s;
+        }
+        .drill-modal .close-btn:hover { background: #e2e8f0; }
+        .drill-section {
+            border: 2px solid #e2e8f0; border-radius: 14px; padding: 18px; margin-bottom: 16px; transition: .2s;
+        }
+        .drill-section.match { border-color: #c6f6d5; background: #f0fff4; }
+        .drill-section.mismatch { border-color: #fed7d7; background: #fff5f5; }
+        .drill-section-header {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;
+        }
+        .drill-section-header .section-name { font-size: 16px; font-weight: 700; color: #2d3748; }
+        .drill-section-header .match-badge {
+            padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700;
+        }
+        .match-badge.agree { background: #c6f6d5; color: #276749; }
+        .match-badge.disagree { background: #fed7d7; color: #9b2c2c; }
+        .drill-side-by-side {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+        }
+        .drill-side {
+            background: #f7fafc; border-radius: 10px; padding: 14px;
+        }
+        .drill-side.ai-side { border-right: 4px solid #3182ce; }
+        .drill-side.human-side { border-right: 4px solid #d69e2e; }
+        .drill-side .side-label {
+            font-size: 12px; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; letter-spacing: .5px;
+        }
+        .drill-side.ai-side .side-label { color: #3182ce; }
+        .drill-side.human-side .side-label { color: #d69e2e; }
+        .drill-side .side-status { font-size: 1.3rem; margin-bottom: 6px; }
+        .drill-side .side-summary { font-size: 13px; color: #4a5568; line-height: 1.6; }
+        .drill-side .side-evidence {
+            margin-top: 8px; padding-top: 8px; border-top: 1px solid #e2e8f0;
+        }
+        .drill-side .side-evidence li {
+            font-size: 12px; color: #718096; margin-bottom: 4px; padding: 4px 8px;
+            background: #fff; border-radius: 4px;
+        }
+        .compare-empty {
+            text-align: center; padding: 60px 20px; color: #a0aec0;
+        }
+        .compare-empty .icon { font-size: 3rem; margin-bottom: 12px; }
+        .compare-empty .text { font-size: 16px; }
+
+        @media (max-width: 768px) {
+            .drill-side-by-side { grid-template-columns: 1fr; }
+            .compare-summary-grid { grid-template-columns: repeat(2, 1fr); }
+            .section-accuracy-grid { grid-template-columns: repeat(2, 1fr); }
+        }
     </style>
 </head>
 <body>
@@ -952,20 +1086,24 @@
 
         <!-- Compare Tab -->
         <div class="tab-content" id="compareTab">
-            <div class="controls" style="margin-top:0">
-                <div>
-                    <label class="label" style="display:block;margin-bottom:6px">Dataset A</label>
-                    <select id="compareA" class="dataset-select" onchange="renderCompare()"></select>
-                </div>
-                <div>
-                    <label class="label" style="display:block;margin-bottom:6px">Dataset B</label>
-                    <select id="compareB" class="dataset-select" onchange="renderCompare()"></select>
+            <div class="compare-header">
+                <span class="compare-label"><span class="compare-badge ai">🤖 AI</span> Dataset A</span>
+                <select id="compareA" class="dataset-select"></select>
+                <span class="compare-label"><span class="compare-badge human">👤 אנושי</span> Dataset B</span>
+                <select id="compareB" class="dataset-select"></select>
+                <button class="compare-run-btn" onclick="runDeepCompare()">🔍 השווה לעומק</button>
+            </div>
+            <div id="compareResults">
+                <div class="compare-empty">
+                    <div class="icon">⚖️</div>
+                    <div class="text">בחר שני דאטהסטים ולחץ "השווה לעומק" להשוואת AI מול בקרה אנושית</div>
                 </div>
             </div>
-            <div class="kpi-grid" id="compareKpis"></div>
-            <div class="table-container">
-                <canvas id="compareChart" height="120"></canvas>
-            </div>
+        </div>
+
+        <!-- Drill-down modal for per-record comparison -->
+        <div class="drill-modal-overlay" id="drillOverlay" onclick="if(event.target===this)closeDrill()">
+            <div class="drill-modal" id="drillModal"></div>
         </div>
     </div>
 
@@ -1151,6 +1289,7 @@
                     hideUploadModal();
                     closeModal();
                     hideAudioProcessingModal();
+                    closeDrill();
                 }
             });
 
@@ -2271,50 +2410,198 @@
             }, 5000); // Poll every 5 seconds
         }
 
-        // Compare
+        // ===== Deep Comparison =====
+        let lastCompareData = null;
+
         async function renderCompare() {
+            // Populate selectors only; no auto-run
+        }
+
+        async function runDeepCompare() {
             const idA = document.getElementById('compareA').value;
             const idB = document.getElementById('compareB').value;
             localStorage.setItem('compareA', idA || '');
             localStorage.setItem('compareB', idB || '');
-            if (!idA || !idB || idA === idB) {
-                document.getElementById('compareKpis').innerHTML = '';
-                const ctx = document.getElementById('compareChart').getContext('2d');
-                if (compareChartInstance) compareChartInstance.destroy();
-                compareChartInstance = new Chart(ctx, { type: 'bar', data: { labels: [], datasets: [] } });
+
+            const container = document.getElementById('compareResults');
+
+            if (!idA || !idB) {
+                container.innerHTML = '<div class="compare-empty"><div class="icon">⚠️</div><div class="text">יש לבחור שני דאטהסטים להשוואה</div></div>';
                 return;
             }
-            const [recA, recB] = await Promise.all([fetchDatasetRecords(idA), fetchDatasetRecords(idB)]);
-            const k = (recs) => ({
-                total: recs.length,
-                valid: recs.filter(r => r.status === 'תקין').length,
-                improvement: recs.filter(r => r.status === 'טעון שיפור').length,
-                invalid: recs.filter(r => r.status === 'לא תקין').length
+            if (idA === idB) {
+                container.innerHTML = '<div class="compare-empty"><div class="icon">🔄</div><div class="text">יש לבחור שני דאטהסטים שונים</div></div>';
+                return;
+            }
+
+            container.innerHTML = '<div class="compare-empty"><div class="icon" style="animation:pulse 1s infinite">⏳</div><div class="text">מבצע השוואה לעומק...</div></div>';
+
+            try {
+                const resp = await fetch(`/api/compare/${encodeURIComponent(idA)}/${encodeURIComponent(idB)}`);
+                if (!resp.ok) throw new Error('Server error ' + resp.status);
+                const data = await resp.json();
+                if (data.error) throw new Error(data.error);
+                lastCompareData = data;
+                renderCompareResults(data);
+            } catch (err) {
+                container.innerHTML = `<div class="compare-empty"><div class="icon">❌</div><div class="text">שגיאה: ${escapeHtml(err.message)}</div></div>`;
+            }
+        }
+
+        function meterColor(pct) {
+            if (pct >= 80) return 'green';
+            if (pct >= 50) return 'yellow';
+            return 'red';
+        }
+
+        function renderCompareResults(data) {
+            const s = data.summary;
+            const container = document.getElementById('compareResults');
+
+            // --- Summary KPIs ---
+            let html = `<div class="compare-summary-grid">
+                <div class="compare-summary-card blue"><div class="csc-value">${s.totalCompared}</div><div class="csc-label">רשומות הושוו</div></div>
+                <div class="compare-summary-card ${meterColor(s.overallStatusAccuracy || 0)}">
+                    <div class="csc-value">${s.overallStatusAccuracy !== null ? s.overallStatusAccuracy + '%' : '-'}</div>
+                    <div class="csc-label">התאמת סטטוס כללי</div>
+                    <div class="accuracy-meter"><div class="fill ${meterColor(s.overallStatusAccuracy || 0)}" style="width:${s.overallStatusAccuracy || 0}%"></div></div>
+                </div>
+                <div class="compare-summary-card ${meterColor(s.totalSectionAccuracy || 0)}">
+                    <div class="csc-value">${s.totalSectionAccuracy !== null ? s.totalSectionAccuracy + '%' : '-'}</div>
+                    <div class="csc-label">התאמת סעיפים כוללת</div>
+                    <div class="accuracy-meter"><div class="fill ${meterColor(s.totalSectionAccuracy || 0)}" style="width:${s.totalSectionAccuracy || 0}%"></div></div>
+                </div>
+                <div class="compare-summary-card ${s.unmatched > 0 ? 'red' : 'green'}">
+                    <div class="csc-value">${s.unmatched}</div>
+                    <div class="csc-label">ללא התאמה</div>
+                </div>
+            </div>`;
+
+            // --- Per-section accuracy cards ---
+            html += `<h3 style="color:#2d3748;margin-bottom:12px;font-size:16px">📊 דיוק לפי סעיף</h3>`;
+            html += `<div class="section-accuracy-grid">`;
+            for (const [key, sa] of Object.entries(s.sectionAccuracy)) {
+                const pct = sa.accuracy !== null ? sa.accuracy : 0;
+                const col = meterColor(pct);
+                html += `<div class="section-accuracy-card">
+                    <div class="sa-label">${escapeHtml(sa.label)}</div>
+                    <div class="sa-value" style="color:var(--c-${col},${col === 'green' ? '#38a169' : col === 'yellow' ? '#d69e2e' : '#e53e3e'})">${sa.accuracy !== null ? sa.accuracy + '%' : '-'}</div>
+                    <div style="font-size:12px;color:#a0aec0">${sa.matches}/${sa.total} התאמות</div>
+                    <div class="accuracy-meter"><div class="fill ${col}" style="width:${pct}%"></div></div>
+                </div>`;
+            }
+            html += `</div>`;
+
+            // --- Records comparison table ---
+            const matched = data.comparisons.filter(c => c.matched);
+            const unmatched = data.comparisons.filter(c => !c.matched);
+
+            if (matched.length > 0) {
+                html += `<h3 style="color:#2d3748;margin:20px 0 12px;font-size:16px">📋 השוואת רשומות (${matched.length})</h3>`;
+                html += `<div class="table-container"><table class="compare-records-table"><thead><tr>
+                    <th>שם קובץ</th>
+                    <th>סטטוס AI 🤖</th>
+                    <th>סטטוס אנושי 👤</th>
+                    <th>התאמה כללית</th>`;
+                const sectionKeys = ['methods','charge','address','birthDate','winPromise','credit','reflection'];
+                const sectionLabelsShort = { methods:'שיטות', charge:'חיוב', address:'כתובת', birthDate:'ת.לידה', winPromise:'הבטחת זכייה', credit:'אשראי', reflection:'שיקוף' };
+                sectionKeys.forEach(k => { html += `<th>${sectionLabelsShort[k]}</th>`; });
+                html += `<th>פעולות</th></tr></thead><tbody>`;
+
+                matched.forEach((c, idx) => {
+                    html += `<tr>
+                        <td><strong>${escapeHtml(c.fileName)}</strong></td>
+                        <td>${getStatusBadge(c.overallA)}</td>
+                        <td>${getStatusBadge(c.overallB)}</td>
+                        <td class="match-icon">${c.overallMatch ? '✅' : '❌'}</td>`;
+                    sectionKeys.forEach(k => {
+                        const sec = c.sections[k];
+                        html += `<td class="match-icon" title="${sec.match ? 'התאמה' : 'אי-התאמה'}">${sec.match ? '🟢' : '🔴'}</td>`;
+                    });
+                    html += `<td><button class="drill-btn" onclick="openDrill(${idx})">🔎 פירוט</button></td>`;
+                    html += `</tr>`;
+                });
+                html += `</tbody></table></div>`;
+            }
+
+            if (unmatched.length > 0) {
+                html += `<h3 style="color:#e53e3e;margin:20px 0 12px;font-size:16px">⚠️ רשומות ללא התאמה (${unmatched.length})</h3>`;
+                html += `<div style="display:flex;flex-wrap:wrap;gap:8px">`;
+                unmatched.forEach(c => {
+                    html += `<div style="background:#fff5f5;border:1px solid #fed7d7;border-radius:8px;padding:8px 14px;font-size:13px">
+                        <strong>${escapeHtml(c.fileName)}</strong> <span style="color:#a0aec0">— לא נמצא ב-Dataset B</span>
+                    </div>`;
+                });
+                html += `</div>`;
+            }
+
+            container.innerHTML = html;
+        }
+
+        function openDrill(matchedIndex) {
+            if (!lastCompareData) return;
+            const matched = lastCompareData.comparisons.filter(c => c.matched);
+            const c = matched[matchedIndex];
+            if (!c) return;
+
+            const sectionKeys = ['methods','charge','address','birthDate','winPromise','credit','reflection'];
+            let matchCount = 0;
+            let totalSections = 0;
+            sectionKeys.forEach(k => { if (c.sections[k]) { totalSections++; if (c.sections[k].match) matchCount++; } });
+
+            let html = `<button class="close-btn" onclick="closeDrill()">✕</button>`;
+            html += `<h2 style="margin-bottom:6px;color:#2d3748">🔎 השוואה מפורטת</h2>`;
+            html += `<div style="margin-bottom:18px;color:#718096;font-size:14px"><strong>קובץ:</strong> ${escapeHtml(c.fileName)}</div>`;
+
+            // Overall status comparison
+            html += `<div style="display:flex;gap:14px;margin-bottom:20px;flex-wrap:wrap">
+                <div style="flex:1;min-width:200px;background:#ebf5ff;border-radius:12px;padding:14px;text-align:center">
+                    <div style="font-size:12px;font-weight:700;color:#3182ce;margin-bottom:6px">🤖 AI</div>
+                    <div style="font-size:1.2rem">${getStatusBadge(c.overallA)}</div>
+                </div>
+                <div style="flex:1;min-width:200px;background:#fef3c7;border-radius:12px;padding:14px;text-align:center">
+                    <div style="font-size:12px;font-weight:700;color:#d69e2e;margin-bottom:6px">👤 אנושי</div>
+                    <div style="font-size:1.2rem">${getStatusBadge(c.overallB)}</div>
+                </div>
+                <div style="flex:1;min-width:200px;background:${c.overallMatch ? '#f0fff4' : '#fff5f5'};border-radius:12px;padding:14px;text-align:center">
+                    <div style="font-size:12px;font-weight:700;color:#4a5568;margin-bottom:6px">סיכום</div>
+                    <div style="font-size:1.1rem;font-weight:700">${matchCount}/${totalSections} סעיפים תואמים</div>
+                </div>
+            </div>`;
+
+            // Per-section drill-down
+            sectionKeys.forEach(k => {
+                const sec = c.sections[k];
+                if (!sec) return;
+                const cls = sec.match ? 'match' : 'mismatch';
+                html += `<div class="drill-section ${cls}">
+                    <div class="drill-section-header">
+                        <span class="section-name">${escapeHtml(sec.label)}</span>
+                        <span class="match-badge ${sec.match ? 'agree' : 'disagree'}">${sec.match ? '✅ תואם' : '❌ אי-התאמה'}</span>
+                    </div>
+                    <div class="drill-side-by-side">
+                        <div class="drill-side ai-side">
+                            <div class="side-label">🤖 AI</div>
+                            <div class="side-status">${sec.ai.status || '-'}</div>
+                            <div class="side-summary">${escapeHtml(sec.ai.summary || 'אין נימוק')}</div>
+                            ${sec.ai.evidence && sec.ai.evidence.length > 0 ? `<ul class="side-evidence">${sec.ai.evidence.map(e => `<li>"${escapeHtml(e)}"</li>`).join('')}</ul>` : ''}
+                        </div>
+                        <div class="drill-side human-side">
+                            <div class="side-label">👤 אנושי</div>
+                            <div class="side-status">${sec.human.status || '-'}</div>
+                            <div class="side-summary">${escapeHtml(sec.human.summary || 'אין נימוק')}</div>
+                            ${sec.human.evidence && sec.human.evidence.length > 0 ? `<ul class="side-evidence">${sec.human.evidence.map(e => `<li>"${escapeHtml(e)}"</li>`).join('')}</ul>` : ''}
+                        </div>
+                    </div>
+                </div>`;
             });
-            const a = k(recA), b = k(recB);
-            document.getElementById('compareKpis').innerHTML = `
-                <div class="stat-card"><div class="label">A סה"כ</div><div class="value">${a.total}</div></div>
-                <div class="stat-card"><div class="label">B סה"כ</div><div class="value">${b.total}</div></div>
-                <div class="stat-card green"><div class="label">A תקין</div><div class="value">${a.valid}</div></div>
-                <div class="stat-card green"><div class="label">B תקין</div><div class="value">${b.valid}</div></div>
-                <div class="stat-card yellow"><div class="label">A טעון שיפור</div><div class="value">${a.improvement}</div></div>
-                <div class="stat-card yellow"><div class="label">B טעון שיפור</div><div class="value">${b.improvement}</div></div>
-                <div class="stat-card red"><div class="label">A לא תקין</div><div class="value">${a.invalid}</div></div>
-                <div class="stat-card red"><div class="label">B לא תקין</div><div class="value">${b.invalid}</div></div>
-            `;
-            const ctx = document.getElementById('compareChart').getContext('2d');
-            if (compareChartInstance) compareChartInstance.destroy();
-            compareChartInstance = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: ['סה"כ','תקין','טעון שיפור','לא תקין'],
-                    datasets: [
-                        { label: 'A', backgroundColor: '#3a6ea5', borderColor: '#2a5a8a', data: [a.total,a.valid,a.improvement,a.invalid] },
-                        { label: 'B', backgroundColor: '#d97706', borderColor: '#b45309', data: [b.total,b.valid,b.improvement,b.invalid] }
-                    ]
-                },
-                options: { responsive: true }
-            });
+
+            document.getElementById('drillModal').innerHTML = html;
+            document.getElementById('drillOverlay').classList.add('active');
+        }
+
+        function closeDrill() {
+            document.getElementById('drillOverlay').classList.remove('active');
         }
     </script>
 </body>

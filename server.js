@@ -789,6 +789,175 @@ app.post('/api/qa-result', express.json(), (req, res) => {
   }
 });
 
+// Deep comparison endpoint – AI (dataset A) vs Human (dataset B)
+app.get('/api/compare/:idA/:idB', (req, res) => {
+  try {
+    const { idA, idB } = req.params;
+    const dsA = datasetsIndex[idA];
+    const dsB = datasetsIndex[idB];
+    if (!dsA) return res.status(404).json({ error: 'Dataset A not found' });
+    if (!dsB) return res.status(404).json({ error: 'Dataset B not found' });
+
+    const sectionKeys = ['methods', 'charge', 'address', 'birthDate', 'winPromise', 'credit', 'reflection'];
+    const sectionLabels = {
+      methods: 'הסבר שיטות',
+      charge: 'הסבר חיוב',
+      address: 'כתובת',
+      birthDate: 'תאריך לידה',
+      winPromise: 'הבטחת זכייה',
+      credit: 'אשראי',
+      reflection: 'שיקוף שיחה'
+    };
+
+    // Normalize a status value to a canonical form for comparison
+    function normalizeStatus(val) {
+      if (!val) return 'unknown';
+      const s = typeof val === 'object' ? (val.status || '') : String(val);
+      const t = s.trim();
+      if (t === '✅' || t === 'תקין' || t.toLowerCase() === 'valid') return 'valid';
+      if (t === '⚠️' || t === 'טעון שיפור' || t.toLowerCase().includes('improve')) return 'improvement';
+      if (t === '❌' || t === 'לא תקין' || t.toLowerCase().includes('invalid') || t.toLowerCase().includes('fail')) return 'invalid';
+      if (t === '⬜' || t === '-' || t === '') return 'unknown';
+      return 'unknown';
+    }
+
+    function displayStatus(val) {
+      if (!val) return '-';
+      if (typeof val === 'object' && val.status) return val.status;
+      const s = String(val).trim();
+      if (s === '✅' || s === 'תקין') return '✅';
+      if (s === '⚠️' || s === 'טעון שיפור') return '⚠️';
+      if (s === '❌' || s === 'לא תקין') return '❌';
+      return s.substring(0, 2) || '-';
+    }
+
+    function getSummary(val) {
+      if (!val) return '';
+      if (typeof val === 'object' && val.summary) return val.summary;
+      if (typeof val === 'string') return val;
+      return '';
+    }
+
+    function getEvidence(val) {
+      if (!val) return [];
+      if (typeof val === 'object' && Array.isArray(val.evidence)) return val.evidence;
+      return [];
+    }
+
+    // Normalize fileName for fuzzy matching
+    function normalizeFileName(name) {
+      return String(name || '').trim().toLowerCase()
+        .replace(/\.(wav|mp3|m4a|json|xlsx?)$/i, '')
+        .replace(/[_\-\s]+/g, ' ')
+        .trim();
+    }
+
+    // Build lookup from dataset B by normalized fileName
+    const bByName = new Map();
+    for (const rec of (dsB.records || [])) {
+      const key = normalizeFileName(rec.fileName);
+      if (!bByName.has(key)) bByName.set(key, rec);
+    }
+
+    // Per-section stats
+    const sectionStats = {};
+    for (const k of sectionKeys) {
+      sectionStats[k] = { label: sectionLabels[k], matches: 0, mismatches: 0, total: 0 };
+    }
+
+    let overallStatusMatches = 0;
+    let totalCompared = 0;
+
+    const comparisons = [];
+
+    for (const recA of (dsA.records || [])) {
+      const keyA = normalizeFileName(recA.fileName);
+      const recB = bByName.get(keyA);
+
+      if (!recB) {
+        comparisons.push({
+          fileName: recA.fileName,
+          matched: false,
+          overallA: recA.status,
+          overallB: null,
+          sections: null
+        });
+        continue;
+      }
+
+      totalCompared++;
+
+      const normOverallA = normalizeStatus({ status: recA.status === 'תקין' ? '✅' : recA.status === 'טעון שיפור' ? '⚠️' : recA.status === 'לא תקין' ? '❌' : recA.status });
+      const normOverallB = normalizeStatus({ status: recB.status === 'תקין' ? '✅' : recB.status === 'טעון שיפור' ? '⚠️' : recB.status === 'לא תקין' ? '❌' : recB.status });
+      if (normOverallA === normOverallB) overallStatusMatches++;
+
+      const sectionComparisons = {};
+      for (const k of sectionKeys) {
+        const valA = recA[k];
+        const valB = recB[k];
+        const normA = normalizeStatus(valA);
+        const normB = normalizeStatus(valB);
+        const match = normA === normB;
+
+        if (normA !== 'unknown' || normB !== 'unknown') {
+          sectionStats[k].total++;
+          if (match) sectionStats[k].matches++;
+          else sectionStats[k].mismatches++;
+        }
+
+        sectionComparisons[k] = {
+          label: sectionLabels[k],
+          match,
+          ai: { status: displayStatus(valA), summary: getSummary(valA), evidence: getEvidence(valA) },
+          human: { status: displayStatus(valB), summary: getSummary(valB), evidence: getEvidence(valB) }
+        };
+      }
+
+      comparisons.push({
+        fileName: recA.fileName,
+        matched: true,
+        overallA: recA.status,
+        overallB: recB.status,
+        overallMatch: normOverallA === normOverallB,
+        sections: sectionComparisons
+      });
+    }
+
+    // Summary
+    const sectionAccuracy = {};
+    for (const k of sectionKeys) {
+      const s = sectionStats[k];
+      sectionAccuracy[k] = {
+        label: s.label,
+        matches: s.matches,
+        mismatches: s.mismatches,
+        total: s.total,
+        accuracy: s.total > 0 ? Math.round((s.matches / s.total) * 100) : null
+      };
+    }
+
+    const totalSectionChecks = sectionKeys.reduce((sum, k) => sum + sectionStats[k].total, 0);
+    const totalSectionMatches = sectionKeys.reduce((sum, k) => sum + sectionStats[k].matches, 0);
+
+    res.json({
+      datasetA: { id: dsA.id, name: dsA.name, totalRecords: (dsA.records || []).length },
+      datasetB: { id: dsB.id, name: dsB.name, totalRecords: (dsB.records || []).length },
+      summary: {
+        totalCompared,
+        unmatched: comparisons.filter(c => !c.matched).length,
+        overallStatusAccuracy: totalCompared > 0 ? Math.round((overallStatusMatches / totalCompared) * 100) : null,
+        overallStatusMatches,
+        sectionAccuracy,
+        totalSectionAccuracy: totalSectionChecks > 0 ? Math.round((totalSectionMatches / totalSectionChecks) * 100) : null
+      },
+      comparisons
+    });
+  } catch (err) {
+    console.error('[Compare Error]', err);
+    res.status(500).json({ error: 'Failed to compare datasets' });
+  }
+});
+
 // Lightweight health endpoint for deploy platforms/load balancers
 app.get('/healthz', (_req, res) => {
   try {
