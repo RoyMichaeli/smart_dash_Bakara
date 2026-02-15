@@ -2555,11 +2555,20 @@
                 html += `<th>פעולות</th></tr></thead><tbody>`;
 
                 matched.forEach((c, idx) => {
+                    // Calculate section match ratio for this record
+                    let secMatch = 0, secTotal = 0;
+                    sectionKeys.forEach(k => { if (c.sections[k]) { secTotal++; if (c.sections[k].match) secMatch++; } });
+                    const secPct = secTotal > 0 ? Math.round((secMatch / secTotal) * 100) : 0;
+                    const ratioColor = secPct === 100 ? '#38a169' : secPct >= 70 ? '#d69e2e' : '#e53e3e';
+                    const ratioBg = secPct === 100 ? '#f0fff4' : secPct >= 70 ? '#fffff0' : '#fff5f5';
+
                     html += `<tr>
                         <td><strong>${escapeHtml(c.fileName)}</strong></td>
                         <td>${getStatusBadge(c.overallA)}</td>
                         <td>${getStatusBadge(c.overallB)}</td>
-                        <td class="match-icon">${c.overallMatch ? '✅' : '❌'}</td>`;
+                        <td style="text-align:center">
+                            <span style="display:inline-block;padding:4px 10px;border-radius:20px;font-size:13px;font-weight:700;color:${ratioColor};background:${ratioBg};border:1px solid ${ratioColor}20">${secMatch}/${secTotal}</span>
+                        </td>`;
                     sectionKeys.forEach(k => {
                         const sec = c.sections[k];
                         html += `<td class="match-icon" title="${sec.match ? 'התאמה' : 'אי-התאמה'}">${sec.match ? '🟢' : '🔴'}</td>`;
