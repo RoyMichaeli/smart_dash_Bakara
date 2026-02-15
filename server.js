@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
@@ -23,6 +24,10 @@ app.use(express.static(__dirname));
 // In-memory datasets index
 // Structure: { [datasetId]: { id, name, createdAt, records, fields } }
 const datasetsIndex = {};
+
+// In-memory transcription results cache
+// Structure: { [job_id]: { fileName, status, segments, speakers, ... } }
+const transcriptionResults = {};
 
 // Unified header normalization used across mapping and debug helpers
 function normalizeHeader(raw) {
@@ -81,6 +86,32 @@ const upload = multer({
     cb(new Error('Only .xls, .xlsx, .csv files are allowed'));
   },
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB
+});
+
+// Configure multer for JSON uploads
+const jsonUpload = multer({
+  storage,
+  fileFilter: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (ext === '.json') return cb(null, true);
+    cb(new Error('Only .json files are allowed'));
+  },
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB
+});
+
+// Configure multer for audio uploads
+const audioUpload = multer({
+  storage,
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['.mp3', '.wav', '.m4a', '.ogg', '.flac'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    const allowedMimes = ['audio/mpeg', 'audio/wav', 'audio/mp3', 'audio/x-m4a', 'audio/ogg', 'audio/flac'];
+    if (allowed.includes(ext) || allowedMimes.includes(file.mimetype)) {
+      return cb(null, true);
+    }
+    cb(new Error('Only audio files are allowed (MP3, WAV, M4A, OGG, FLAC)'));
+  },
+  limits: { fileSize: 50 * 1024 * 1024 } // 50MB for audio files
 });
 
 // Map sheet rows to our dashboard schema
@@ -225,6 +256,117 @@ function mapRowToRecord(row) {
   return record;
 }
 
+// Map section-based JSON (from n8n QA automation) to dashboard record format
+// Supports the rich JSON structure with sections[].name/status/reason/evidence
+function mapJsonToRecord(json) {
+  const sections = json.sections || {};
+
+  // Map section name → dashboard field key (normalized matching)
+  const sectionNameToField = {
+    'הסבר שיטות': 'methods',
+    'שיטות': 'methods',
+    'אשראי': 'credit',
+    'כרטיס אשראי': 'credit',
+    'הבטחת זכייה': 'winPromise',
+    'הבטחת זכיה': 'winPromise',
+    'תאריך לידה': 'birthDate',
+    'כתובת': 'address',
+    'הסבר חיוב': 'charge',
+    'חיוב': 'charge',
+    'שיקוף שיחה': 'reflection',
+    'שיקוף': 'reflection'
+  };
+
+  // Convert Hebrew status text to dashboard status icon
+  function statusToIcon(status) {
+    if (!status) return '⬜';
+    const s = String(status).trim();
+    if (s === 'תקין' || s.toLowerCase() === 'valid') return '✅';
+    if (s === 'טעון שיפור' || s.toLowerCase().includes('improve')) return '⚠️';
+    if (s === 'לא תקין' || s.toLowerCase().includes('invalid') || s.toLowerCase().includes('fail')) return '❌';
+    return '⬜';
+  }
+
+  // Extract flat evidence text array from rich evidence objects
+  function flattenEvidence(evidenceArr) {
+    if (!Array.isArray(evidenceArr)) return [];
+    return evidenceArr.map(e => {
+      if (typeof e === 'string') return e;
+      if (typeof e === 'object' && e !== null) return e.text || e.fullText || JSON.stringify(e);
+      return String(e);
+    }).filter(Boolean);
+  }
+
+  // Build a rich field object from a section
+  function buildField(section) {
+    if (!section) return '⬜';
+    return {
+      status: statusToIcon(section.status),
+      summary: section.reason || '',
+      evidence: flattenEvidence(section.evidence),
+      timestamp: (section.evidence && section.evidence[0] && section.evidence[0].time) || '',
+      ...(section.critical ? { critical: true } : {}),
+      ...(section.note !== undefined ? { note: section.note } : {})
+    };
+  }
+
+  // Initialize record with defaults
+  const record = {
+    fileName: json.originalFileName || json.fileName || 'unknown',
+    status: json.finalStatus || 'לא ידוע',
+    methods: '⬜',
+    charge: '⬜',
+    address: '⬜',
+    birthDate: '⬜',
+    winPromise: '⬜',
+    credit: '⬜',
+    reflection: '⬜',
+    transcript: json.transcript || '',
+    metadata: {
+      fileId: json.fileId || '',
+      timestamp: json.timestamp || new Date().toISOString(),
+      track: json.track || '',
+      approved: json.approved || false,
+      confidence: json.confidence || null,
+      needsHumanReview: json.needsHumanReview || false,
+      durationSec: json.durationSec || null,
+      summary: json.summary || null
+    }
+  };
+
+  // Map each section to the correct dashboard field
+  for (const [_key, section] of Object.entries(sections)) {
+    if (!section || !section.name) continue;
+    const sectionName = String(section.name).trim();
+    const fieldKey = sectionNameToField[sectionName];
+    if (!fieldKey) continue;
+
+    const field = buildField(section);
+
+    // Enrich specific fields with extra data from the section
+    if (fieldKey === 'address' && section.address) {
+      field.details = {
+        'רחוב ומספר': section.address.street || '',
+        'עיר': section.address.city || '',
+        'שלמות': section.address.completeness === 'full' ? 'מלאה' : (section.address.completeness || '')
+      };
+    }
+
+    if (fieldKey === 'birthDate') {
+      field.value = section.value || '';
+      if (section.age !== undefined) field.details = {
+        'גיל': section.age,
+        'קטין': section.isMinor ? 'כן' : 'לא',
+        ...(section.value ? { 'תאריך לידה': section.value } : {})
+      };
+    }
+
+    record[fieldKey] = field;
+  }
+
+  return record;
+}
+
 app.post('/api/upload-excel', upload.single('file'), (req, res) => {
   try {
     if (!req.file) {
@@ -314,6 +456,69 @@ app.post('/api/upload-excel', upload.single('file'), (req, res) => {
   }
 });
 
+// JSON import endpoint – accepts .json files with section-based QA results
+app.post('/api/upload-json', jsonUpload.single('file'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'לא הועלה קובץ' });
+    }
+
+    const filePath = req.file.path;
+    const raw = fs.readFileSync(filePath, 'utf-8');
+
+    // Clean up uploaded file immediately
+    fs.unlink(filePath, () => {});
+
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (_e) {
+      return res.status(400).json({ error: 'הקובץ אינו JSON תקין' });
+    }
+
+    // Support both single object and array of objects
+    const items = Array.isArray(parsed) ? parsed : [parsed];
+
+    if (items.length === 0) {
+      return res.status(400).json({ error: 'קובץ ה-JSON ריק' });
+    }
+
+    const records = items.map(mapJsonToRecord);
+
+    const datasetId = generateDatasetId(req.file.originalname || 'json-import');
+    const fields = ['fileName', 'status', 'methods', 'charge', 'address', 'birthDate', 'winPromise', 'credit', 'reflection', 'transcript'];
+    const createdAt = new Date().toISOString();
+    const name = req.file.originalname || `ייבוא JSON - ${new Date().toLocaleDateString('he-IL')}`;
+
+    datasetsIndex[datasetId] = {
+      id: datasetId,
+      name,
+      createdAt,
+      records,
+      fields
+    };
+
+    const stats = computeDatasetStats(records);
+
+    console.log(`[JSON Import] File: ${req.file.originalname}, Records: ${records.length}, Dataset: ${datasetId}`);
+
+    return res.json({
+      datasetId,
+      dataset: {
+        id: datasetId,
+        name,
+        createdAt,
+        fields,
+        numRecords: stats.total,
+        statusCounts: stats.statusCounts
+      }
+    });
+  } catch (err) {
+    console.error('[JSON Import Error]', err);
+    return res.status(500).json({ error: err.message || 'שגיאה בעיבוד קובץ ה-JSON' });
+  }
+});
+
 // List datasets (metadata only)
 app.get('/api/datasets', (_req, res) => {
   try {
@@ -348,6 +553,242 @@ app.get('/api/dataset/:id', (req, res) => {
   });
 });
 
+// Process audio file endpoint - sends to n8n webhook
+app.post('/api/process-audio', audioUpload.single('audio'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No audio file uploaded' });
+    }
+
+    const filePath = req.file.path;
+    const fileName = req.body.fileName || req.file.originalname;
+    
+    // Get n8n webhook URL from environment variable
+    const n8nWebhookUrl = process.env.N8N_WEBHOOK_URL || 'http://localhost:5678/webhook/transcribe-ingest';
+    
+    console.log(`[Audio Upload] File: ${fileName}, Size: ${req.file.size} bytes`);
+    console.log(`[Audio Upload] Sending to n8n: ${n8nWebhookUrl}`);
+
+    // Send audio file to n8n webhook with metadata
+    const FormData = (await import('form-data')).default;
+    const formData = new FormData();
+    formData.append('audio', fs.createReadStream(filePath), {
+      filename: fileName,
+      contentType: req.file.mimetype
+    });
+    
+    // Add metadata
+    formData.append('fileName', fileName);
+    formData.append('fileSize', req.file.size.toString());
+    formData.append('mimeType', req.file.mimetype);
+    formData.append('uploadedAt', new Date().toISOString());
+    
+    // Callback URL for n8n to send results back
+    const callbackUrl = `${req.protocol}://${req.get('host')}/api/callback/transcription`;
+    formData.append('callbackUrl', callbackUrl);
+
+    const fetch = (await import('node-fetch')).default;
+    const n8nResponse = await fetch(n8nWebhookUrl, {
+      method: 'POST',
+      body: formData,
+      headers: formData.getHeaders(),
+      timeout: 300000 // 5 minutes timeout for processing
+    });
+
+    if (!n8nResponse.ok) {
+      const errorText = await n8nResponse.text();
+      console.error(`[n8n Error] Status: ${n8nResponse.status}, Response: ${errorText}`);
+      throw new Error(`n8n webhook returned status ${n8nResponse.status}`);
+    }
+
+    const n8nResult = await n8nResponse.json();
+    console.log(`[n8n Response] Job ID: ${n8nResult.job_id || 'N/A'}, Status: ${n8nResult.status || 'N/A'}`);
+
+    // Clean up uploaded file after sending to n8n
+    fs.unlink(filePath, (err) => {
+      if (err) console.error('Failed to delete temp file:', err);
+    });
+
+    // Return the result from n8n (should include job_id and status)
+    return res.json({ 
+      result: n8nResult,
+      success: true
+    });
+
+  } catch (err) {
+    console.error('[Audio Processing Error]', err);
+    
+    // Clean up file on error
+    if (req.file && req.file.path) {
+      fs.unlink(req.file.path, () => {});
+    }
+    
+    return res.status(500).json({ 
+      error: err.message || 'Failed to process audio file',
+      details: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
+  }
+});
+
+// Callback endpoint for n8n to send transcription results
+app.post('/api/callback/transcription', express.json(), (req, res) => {
+  try {
+    const { job_id, fileName, status, segments, speakers, conversation_duration_ms, segments_count, speakers_count } = req.body;
+    
+    console.log(`[Transcription Callback] Job: ${job_id}, File: ${fileName}, Status: ${status}`);
+    console.log(`[Transcription Callback] Segments: ${segments_count}, Speakers: ${speakers_count}, Duration: ${conversation_duration_ms}ms`);
+    
+    // Parse segments and speakers if they're strings
+    const parsedSegments = typeof segments === 'string' ? JSON.parse(segments) : segments;
+    const parsedSpeakers = typeof speakers === 'string' ? JSON.parse(speakers) : speakers;
+    
+    // Store results in memory cache
+    transcriptionResults[job_id] = {
+      job_id,
+      fileName,
+      status,
+      segments: parsedSegments,
+      speakers: parsedSpeakers,
+      conversation_duration_ms,
+      segments_count,
+      speakers_count,
+      receivedAt: new Date().toISOString()
+    };
+    
+    console.log(`[Transcription Callback] Stored results for job ${job_id} (file: ${fileName})`);
+    
+    res.status(200).json({ received: true, job_id, fileName });
+  } catch (err) {
+    console.error('[Callback Error]', err);
+    res.status(500).json({ error: 'Failed to process callback' });
+  }
+});
+
+// Get transcription result by job_id
+app.get('/api/transcription/:job_id', (req, res) => {
+  const { job_id } = req.params;
+  const result = transcriptionResults[job_id];
+  
+  if (!result) {
+    return res.status(404).json({ error: 'Transcription not found' });
+  }
+  
+  res.json(result);
+});
+
+// Receive QA results from n8n automation
+app.post('/api/qa-result', express.json(), (req, res) => {
+  try {
+    const qaData = req.body;
+    console.log(`[QA Result] Received for file: ${qaData.fileName}`);
+    
+    // Transform the data structure from automation format to dashboard format
+    const record = {
+      fileName: qaData.fileName || 'unknown',
+      status: qaData.final_status || qaData.overall || 'לא ידוע',
+      
+      methods: {
+        status: qaData.s1_status || '⬜',
+        summary: qaData.s1_why || '',
+        evidence: [qaData.s1_e1, qaData.s1_e2].filter(Boolean),
+        timestamp: qaData.s1_timestamp || ''
+      },
+      
+      charge: {
+        status: qaData.s2_status || '⬜',
+        summary: qaData.s2_why || '',
+        evidence: [qaData.s2_e1, qaData.s2_e2].filter(Boolean),
+        timestamp: qaData.s2_timestamp || ''
+      },
+      
+      address: {
+        status: qaData.s3_status || '⬜',
+        summary: qaData.s3_why || '',
+        evidence: [qaData.s3_e1, qaData.s3_e2].filter(Boolean),
+        details: {
+          street_number: qaData.address_street_number || '',
+          locality: qaData.address_locality || '',
+          zip: qaData.address_zip || '',
+          completeness: qaData.address_completeness || ''
+        },
+        timestamp: qaData.s3_timestamp || ''
+      },
+      
+      birthDate: {
+        status: qaData.s4_status || '⬜',
+        summary: qaData.s4_why || '',
+        evidence: [qaData.s4_e1].filter(Boolean),
+        value: qaData.dob_text || '',
+        timestamp: qaData.s4_timestamp || ''
+      },
+      
+      winPromise: {
+        status: qaData.s5_status || '⬜',
+        summary: qaData.s5_why || '',
+        evidence: [qaData.s5_e1].filter(Boolean),
+        timestamp: qaData.s5_timestamp || ''
+      },
+      
+      credit: {
+        status: qaData.s6_status || '⬜',
+        summary: qaData.s6_why || '',
+        evidence: [qaData.s6_e1].filter(Boolean),
+        timestamp: qaData.s6_timestamp || ''
+      },
+      
+      reflection: {
+        status: qaData.s7_status || '⬜',
+        summary: qaData.s7_why || '',
+        evidence: [qaData.s7_e1].filter(Boolean),
+        timestamp: qaData.s7_timestamp || ''
+      },
+      
+      transcript: qaData.transcript || '',
+      
+      metadata: {
+        fileId: qaData.fileId || '',
+        timestamp: qaData.timestamp || new Date().toISOString(),
+        track: qaData.track || '',
+        approved: qaData.approved || false
+      }
+    };
+    
+    // Create or update dataset for this automation run
+    const datasetId = qaData.datasetId || generateDatasetId('qa-automation');
+    
+    if (!datasetsIndex[datasetId]) {
+      datasetsIndex[datasetId] = {
+        id: datasetId,
+        name: `QA Automation - ${new Date().toLocaleDateString('he-IL')}`,
+        createdAt: new Date().toISOString(),
+        records: [],
+        fields: ['fileName', 'status', 'methods', 'charge', 'address', 'birthDate', 'winPromise', 'credit', 'reflection', 'transcript']
+      };
+    }
+    
+    // Add or update record in dataset
+    const existingIndex = datasetsIndex[datasetId].records.findIndex(r => r.fileName === record.fileName);
+    if (existingIndex >= 0) {
+      datasetsIndex[datasetId].records[existingIndex] = record;
+    } else {
+      datasetsIndex[datasetId].records.push(record);
+    }
+    
+    console.log(`[QA Result] Stored in dataset ${datasetId}, total records: ${datasetsIndex[datasetId].records.length}`);
+    
+    res.status(200).json({ 
+      success: true, 
+      datasetId,
+      fileName: record.fileName,
+      status: record.status
+    });
+    
+  } catch (err) {
+    console.error('[QA Result Error]', err);
+    res.status(500).json({ error: 'Failed to process QA result' });
+  }
+});
+
 // Lightweight health endpoint for deploy platforms/load balancers
 app.get('/healthz', (_req, res) => {
   try {
@@ -368,6 +809,7 @@ app.get('/', (_req, res) => {
 
 app.listen(port, () => {
   console.log(`Server listening on http://localhost:${port}`);
+  console.log(`[Config] N8N_WEBHOOK_URL: ${process.env.N8N_WEBHOOK_URL || 'NOT SET'}`);
 });
 
 

@@ -1,0 +1,388 @@
+{
+  "name": "OpenAI Transcribe + Diarize irit",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/audio/transcriptions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data0"
+            },
+            {
+              "name": "model",
+              "value": "gpt-4o-transcribe-diarize"
+            },
+            {
+              "name": "language",
+              "value": "he"
+            },
+            {
+              "name": "response_format",
+              "value": "diarized_json"
+            },
+            {
+              "name": "chunking_strategy",
+              "value": "auto"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -576,
+        432
+      ],
+      "id": "325a3daa-1062-4e01-a45d-96e1314cbacf",
+      "name": "OpenAI Transcribe (Diarize)1",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "3PGwn8WVvXRD9NmG",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Input: items[0].json הוא או אובייקט תוצאה או מערך בגודל 1 עם התוצאה\nconst res = Array.isArray(items[0].json) ? items[0].json[0] : items[0].json;\n\n// הגנה בסיסית\nconst segs = Array.isArray(res.segments) ? res.segments : [];\n\n// --- איחוד סגמנטים רצופים של אותו דובר (מפחית “רעש” ב-SRT) ---\nfunction mergeConsecutiveBySpeaker(segments) {\n  const out = [];\n  for (const s of segments) {\n    if (!out.length) { out.push({...s}); continue; }\n    const last = out[out.length - 1];\n    if (last.speaker === s.speaker && (s.start - last.end) <= 0.6) {\n      last.text = (last.text + \" \" + (s.text || \"\")).trim();\n      last.end = s.end ?? last.end;\n    } else {\n      out.push({...s});\n    }\n  }\n  return out;\n}\nconst merged = mergeConsecutiveBySpeaker(segs);\n\n// --- כלים ---\nfunction toSrtTime(t) {\n  if (typeof t !== 'number' || isNaN(t)) t = 0;\n  const ms = Math.floor((t % 1) * 1000);\n  const s = Math.floor(t) % 60;\n  const m = Math.floor(t / 60) % 60;\n  const h = Math.floor(t / 3600);\n  const pad = n => String(n).padStart(2, '0');\n  return `${pad(h)}:${pad(m)}:${pad(s)},${String(ms).padStart(3,'0')}`;\n}\n\n// מסכת ספרות ארוכות (PII בסיסי)\nfunction maskDigits(txt) {\n  return String(txt).replace(/\\d{4,}/g, m => m.replace(/\\d/g, '•'));\n}\n\n// --- בניית SRT דיאריזציה ---\nlet idx = 1;\nlet srt = '';\nfor (const s of merged) {\n  const start = toSrtTime(s.start ?? 0);\n  const end   = toSrtTime(s.end ?? ((s.start ?? 0) + 2));\n  const spk   = s.speaker || 'SPK';\n  const line  = maskDigits((s.text || '').trim());\n  srt += `${idx++}\\n${start} --> ${end}\\n${spk}: ${line}\\n\\n`;\n}\n\n// --- JSON “נקי” לדיאריזציה ---\nconst cleanJson = {\n  text: res.text || '',\n  segments: merged.map(s => ({\n    speaker: s.speaker || 'SPK',\n    start: s.start ?? null,\n    end: s.end ?? null,\n    text: s.text ?? ''\n  })),\n  usage: res.usage || null,\n};\n\n// --- Plain transcript (ללא דוברים) ---\nconst plainTextRaw = res.text && typeof res.text === 'string'\n  ? res.text\n  : segs.map(s => s.text || '').join(' ').trim();\n\nconst plainText = maskDigits(plainTextRaw);\n\n// --- שמות קבצים ---\nconst origName = (items[1] && items[1].json.originalFileName) || 'audio';\n\n// הסר את הסיומת (.wav, .mp3 וכו')\nconst base = origName.replace(/\\.[^.]+$/, '');\n\n// צור timestamp קצר וקריא: 2025-10-30_13-35\nconst now = new Date();\nconst stamp = now.toISOString().slice(0,16).replace('T', '_').replace(/:/g, '-');\n\n// שמות הקבצים עם השם המקורי + timestamp\nconst srtName   = `${base}_${stamp}.srt`;\nconst jsonName  = `${base}_${stamp}.json`;\nconst txtName   = `${base}_${stamp}.txt`;\n\n\n// --- קבצי בינארי ---\nconst srtBuf  = Buffer.from(srt, 'utf8');\nconst jsonBuf = Buffer.from(JSON.stringify(cleanJson, null, 2), 'utf8');\nconst BOM = '\\uFEFF';\nconst txtBuf  = Buffer.from(BOM + plainText, 'utf8');\n\nreturn [{\n  json: {\n    summary: {\n      diarized_segments: merged.length,\n      plain_length_chars: plainText.length\n    },\n    // ✅ רק השורה הזו חדשה:\n    segments: merged\n  },\n  binary: {\n    srt:  { data: srtBuf.toString('base64'),  fileName: srtName,  mimeType: 'application/x-subrip' },\n    json: { data: jsonBuf.toString('base64'), fileName: jsonName, mimeType: 'application/json' },\n    txt:  { data: txtBuf.toString('base64'),  fileName: txtName,  mimeType: 'text/plain; charset=utf-8' }\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -144,
+        560
+      ],
+      "id": "1a1ab356-684f-49cb-859b-f0a469dcb354",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "inputDataFieldName": "txt",
+        "name": "={{$binary.txt.fileName}}\n",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "12rtUb9DV_ltjQLH0KVCiSK7yXYFygshX",
+          "mode": "list",
+          "cachedResultName": "בדיקה איריתוש",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/12rtUb9DV_ltjQLH0KVCiSK7yXYFygshX"
+        },
+        "options": {
+          "simplifyOutput": true
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        176,
+        16
+      ],
+      "id": "671892f3-6109-47f8-889e-0dc7b0a74bac",
+      "name": "Plain TXT",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "PZQiaIN31jzWkEwv",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "transcribe-ingest",
+        "options": {
+          "binaryPropertyName": "data"
+        }
+      },
+      "id": "03df334d-fa6d-41c6-80ca-2827195097a2",
+      "name": "Webhook Ingest",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1024,
+        560
+      ],
+      "webhookId": "transcribe-ingest"
+    },
+    {
+      "parameters": {
+        "fileName": "={{$binary.txt.fileName}}\n",
+        "parentId": "01LDINIM4CMLYAPY6WM5FLSZYSTJYTE3BN",
+        "binaryData": true,
+        "binaryPropertyName": "txt"
+      },
+      "type": "n8n-nodes-base.microsoftOneDrive",
+      "typeVersion": 1,
+      "position": [
+        192,
+        176
+      ],
+      "id": "16f47dad-f633-4b6b-a11a-90ff404573c0",
+      "name": "OneDrive txt",
+      "credentials": {
+        "microsoftOneDriveOAuth2Api": {
+          "id": "ROgdxLU4tPOKEK0U",
+          "name": "Microsoft Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fileName": "={{$binary.srt.fileName}}",
+        "parentId": "01LDINIM4CMLYAPY6WM5FLSZYSTJYTE3BN",
+        "binaryData": true,
+        "binaryPropertyName": "srt"
+      },
+      "type": "n8n-nodes-base.microsoftOneDrive",
+      "typeVersion": 1,
+      "position": [
+        192,
+        336
+      ],
+      "id": "73510e0a-f5d2-40e7-9d1b-7bd06ab377fb",
+      "name": "OneDrive SRT",
+      "credentials": {
+        "microsoftOneDriveOAuth2Api": {
+          "id": "ROgdxLU4tPOKEK0U",
+          "name": "Microsoft Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fileName": "={{$binary.json.fileName}}",
+        "parentId": "01LDINIM4CMLYAPY6WM5FLSZYSTJYTE3BN",
+        "binaryData": true,
+        "binaryPropertyName": "json"
+      },
+      "type": "n8n-nodes-base.microsoftOneDrive",
+      "typeVersion": 1,
+      "position": [
+        192,
+        464
+      ],
+      "id": "903a133e-5e26-4803-8a1f-122bd772df15",
+      "name": "OneDrive JSON",
+      "credentials": {
+        "microsoftOneDriveOAuth2Api": {
+          "id": "ROgdxLU4tPOKEK0U",
+          "name": "Microsoft Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -368,
+        640
+      ],
+      "id": "9b3dc6df-a98e-49e7-bc0e-f03e0f0189c6",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "// שמור את השם המקורי גם ב-json וגם ב-binary metadata\nconst originalName = $input.item.json.body?.fileName || $input.item.json.fileName || 'audio';\n// הוסף את השם ל-binary metadata (כדי שיעבור דרך OpenAI)\nif ($input.item.binary && $input.item.binary.data0) {\n  $input.item.binary.data0.originalFileName = originalName;\n}\n\n// גם ב-json\n$input.item.json.originalFileName = originalName;\n\nreturn $input.item;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -864,
+        560
+      ],
+      "id": "d7e3a801-6224-4d00-bf87-a2cbf1d06628",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.segments.map(s => `${s.speaker}: ${s.text}`).join('\\n\\n') }}\nאתה מבקר איכות בכיר לשיחות מכירה של סמארט לוטו.\nמשימתך: לנתח הקשר ולא לחפש מילים. להבין כוונות ולא להיצמד לביטויים.\n\n=== עיקרון מנחה: ניתוח הקשר ===\n\n❌ לא נכון: \"ראיתי 'תזכי' = כישלון\"\n✅ נכון: \"מה ההקשר? מי אמר? מה הכוונה?\"\n\nדוגמאות הקשר:\n- \"בעזרת השם תזכי במיליון\" = תקווה דתית ✅\n- \"אני מבטיח שתזכי במיליון\" = הבטחה אסורה ❌\n- לקוח: \"אני אזכה?\" נציג: \"אמן/בעזרת השם\" = עידוד מותר ✅\n- \"את בטוח תזכי\" = הבטחה ישירה ❌\n\n=== 8 סעיפי הבקרה (בדיוק כמו בטבלה) ===\n\n📋 סעיף 1: הסבר שיטות\nבדוק מול Memory → products → required_methods\n\nהקשר חשוב:\n- הלקוח שואל הרבה = לא הבין\n- נציג חוזר כמה פעמים = מנסה להבהיר\n- \"יש לך 3 דרכים\" + פירוט = טוב\n\n✅ = כל השיטות (3-4) עם מספרים וסכומים\n⚠️ = 2 שיטות או חסרי פרטים\n❌ = שיטה אחת או פחות\n\n📋 סעיף 2: אשראי\nהקשר: איך נאסף האשראי?\n\n✅ = \"מה מספר הכרטיס?\" → לקוח נותן\n❌ = \"הוראת קבע\" או \"אשראי דירקט\"\n\nחריג: רק סעיף זה ❌ = סטטוס סופי עדיין תקין\n\n📋 סעיף 3: הבטחת זכייה 🚨\nהקשר קובע הכל!\n\nדוגמאות עם הקשר:\n- נציג: \"המטרה שלנו שתזכי\" = מטרה ✅\n- נציג: \"תזכי בהגרלה הבאה\" (הכוונה: תשתתפי) = ✅\n- נציג: \"אני מבטיח שתזכי\" = ❌\n- לקוח: \"מה הסיכוי שאזכה?\" נציג: \"סיכויים טובים\" = ✅\n\n📋 סעיף 4: תאריך לידה\n✅ = נשאל ונענה (יום/חודש/שנה)\n❌ = לא נשאל או חסר\n\n📋 סעיף 5: כתובת\nהקשר: למה צריך? למשלוח זכיות\n\n✅ = רחוב + מספר + עיר\n⚠️ = חסר פרט (למשל רק רחוב ועיר)\n❌ = לא נאספה\n\n📋 סעיף 6: הסבר חיוב\nהקשר קריטי: האם הלקוח הבין?\n\nסימני אזהרה:\n- לקוח: \"זה חד פעמי?\" → חובה תיקון\n- לקוח: \"חינם?\" → חובה הבהרה מלאה\n- נציג מתחמק = ❌\n\n✅ = מחיר (199.90/179.90) + \"חודשי\" + הלקוח הבין\n⚠️ = נאמר אבל לא ברור שהובן\n❌ = חסר או לקוח לא הבין\n\n📋 סעיף 7: הסבר שיטות (חזרה)\nזהה לסעיף 1 - בדוק אם היה הסבר נוסף/משופר\n\n📋 סעיף 8: שיקוף שיחה\nהקשר: איך מסכמים את השיחה?\n\n✅ = \"ברוכה הבאה לסמארט\" + סיכום מחיר/תנאים/שיטות\n⚠️ = שיקוף חלקי\n❌ = אין שיקוף\n\n=== חישוב סטטוס סופי ===\n\nפונקציה מדויקת מ-Memory:\n```pythonred_hard = {הסבר שיטות, הסבר חיוב, תאריך לידה, הבטחת זכייה, שיקוף שיחה}\namber = {הסבר חיוב, הסבר שיטות, כתובת, תאריך לידה}if any(❌ in red_hard): return \"לא תקין\"\nif only(אשראי == ❌): return \"תקין\"  # חריג\nif any(❌): return \"לא תקין\"\nif any(⚠️ in amber): return \"טעון שיפור\"\nelse: return \"תקין\"\n\n=== פלט JSON לדשבורד ===\n\nחובה להחזיר בדיוק במבנה הזה:\n\n{\n  \"fileName\": \"שם הקובץ\",\n  \"fileId\": \"מזהה\",\n  \"timestamp\": \"ISO datetime\",\n  \"final_status\": \"תקין/טעון שיפור/לא תקין\",\n  \"overall\": \"תקין/טעון שיפור/לא תקין\",\n  \n  \"transcript\": \"התמלול המקורי\",\n  \"transcript_normalized\": \"תמלול מנורמל\",\n  \n  \"s1_status\": \"✅/⚠️/❌\",\n  \"s1_why\": \"נימוק עם הקשר\",\n  \"s1_e1\": \"ציטוט/ראיה 1\",\n  \"s1_e2\": \"ציטוט/ראיה 2\",\n  \n  \"s2_status\": \"✅/❌\",\n  \"s2_why\": \"נימוק אשראי\",\n  \"s2_e1\": \"ראיה (מסך אם יש)\",\n  \n  \"s3_status\": \"✅/❌\",\n  \"s3_why\": \"נימוק הבטחה עם הקשר\",\n  \"s3_e1\": \"ציטוט מדויק\",\n  \n  \"s4_status\": \"✅/❌\",\n  \"s4_why\": \"האם נשאל תאריך\",\n  \"s4_e1\": \"התאריך שנאמר\",\n  \"dob_text\": \"DD.MM.YYYY\",\n  \n  \"s5_status\": \"✅/⚠️/❌\",\n  \"s5_why\": \"מה נאסף\",\n  \"s5_e1\": \"רחוב ומספר\",\n  \"address_street_number\": \"רחוב-מספר\",\n  \"address_locality\": \"עיר\",\n  \"address_completeness\": \"full/partial/none\",\n  \n  \"s6_status\": \"✅/⚠️/❌\",\n  \"s6_why\": \"האם הלקוח הבין שזה חודשי\",\n  \"s6_e1\": \"199.90 בכל חודש\",\n  \"s6_e2\": \"תגובת הלקוח\",\n  \n  \"s7_status\": \"✅/⚠️/❌\",\n  \"s7_why\": \"זהה לסעיף 1 או שיפור\",\n  \"s7_e1\": \"ראיה נוספת\",\n  \n  \"s8_status\": \"✅/⚠️/❌\",\n  \"s8_why\": \"איכות השיקוף\",\n  \"s8_e1\": \"ברוכה הבאה לסמארט...\",\n  \n  \"track\": \"לוטו צ'אנס 199.90/טוטו ווינר 199.90/טוטו ווינר 179.90\",\n  \"approved\": true/false,\n  \n  \"needs_human_review\": true/false,\n  \"confidence\": 0-100\n}\n\n=== דוגמה מעשית להקשר ===\n\nתמלול: \"אז בעזרת השם את תזכי המון כסף\"\n\nניתוח הקשר:\n1. יש \"בעזרת השם\" = ביטוי דתי\n2. \"תזכי\" בהקשר של תקווה, לא הבטחה\n3. החלטה: ✅ תקין - עידוד דתי מותר\n\nתמלול: \"אני מבטיח לך שתזכי המון כסף\"\n\nניתוח הקשר:\n1. \"מבטיח\" = התחייבות\n2. \"תזכי\" + הבטחה = אסור\n3. החלטה: ❌ הבטחת זכייה\n\nזכור: אל תהיה רובוט! תחשוב על ההקשר תמיד.\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        16,
+        800
+      ],
+      "id": "6a0c8807-696f-4807-8aab-68cdc9c322bb",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "chatgpt-4o-latest",
+          "mode": "list",
+          "cachedResultName": "chatgpt-4o-latest"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -128,
+        1008
+      ],
+      "id": "2b7f27c6-0394-43b1-a9dd-3e2e0b0836b0",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "fTfllNnhbIUx3GXd",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={\n  \"products\": {\n    \"לוטו_צאנס_199\": {\n      \"name\": \"לוטו צ'אנס 199.90\",\n      \"price\": \"199.90\",\n      \"required_methods\": [\n        \"קובייה אישית - מיליונים\",\n        \"10 קוביות עם 70 חברים - מאות אלפים\",\n        \"50 קוביות עם 200 חברים - עשרות אלפים\"\n      ],\n      \"quantities\": \"528 קוביות + 22 טפסי צ'אנס\"\n    },\n    \"טוטו_ווינר_199\": {\n      \"name\": \"טוטו-ווינר 199.90\",\n      \"price\": \"199.90\",\n      \"required_methods\": [\n        \"טור טוטו אישי - מיליונים\",\n        \"30 טורי טוטו עם 70 חברים - מאות אלפים\",\n        \"200 טורי טוטו עם 500 חברים - עשרות אלפים\",\n        \"15 טפסי ווינר עם 60 חברים - מאות שקלים\"\n      ],\n      \"quantities\": \"1000 טורי טוטו + 65 טפסי ווינר\"\n    },\n    \"טוטו_ווינר_179\": {\n      \"name\": \"טוטו-ווינר 179.90\",\n      \"price\": \"179.90\",\n      \"required_methods\": [\n        \"טור טוטו אישי - מיליונים\",\n        \"20 טורי טוטו עם 70 חברים - מאות אלפים\",\n        \"200 טורי טוטו עם 500 חברים - עשרות אלפים\",\n        \"15 טפסי ווינר עם 60 חברים - מאות שקלים\"\n      ],\n      \"quantities\": \"957 טורי טוטו + 65 טפסי ווינר\"\n    }\n  },\n  \n  \"validation_rules\": {\n    \"monthly_keywords\": [\"בכל חודש\", \"חודשי\", \"מתחדש\"],\n    \"forbidden_credit\": [\"הוראת קבע\", \"אשראי דירקט\"]\n  },\n  \n  \"context_examples\": {\n    \"allowed_hopes\": [\n      \"בעזרת השם תזכה\",\n      \"נכוון לזכייה\",\n      \"סיכויים טובים\",\n      \"אמן על זכייה\"\n    ],\n    \"forbidden_promises\": [\n      \"מבטיח שתזכה\",\n      \"בטוח תזכה\",\n      \"100% זכייה\"\n    ]\n  },\n  \n  \"final_status_logic\": {\n    \"red_hard\": [\"הסבר שיטות\", \"הסבר חיוב\", \"תאריך לידה\", \"הבטחת זכייה\", \"שיקוף שיחה\"],\n    \"amber\": [\"הסבר חיוב\", \"הסבר שיטות\", \"כתובת\", \"תאריך לידה\"],\n    \"exception\": \"אשראי only = תקין\"\n  }\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        32,
+        1008
+      ],
+      "id": "55b1c9e2-1924-469d-bbe2-4d90c282960f",
+      "name": "Simple Memory"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "OpenAI Transcribe (Diarize)1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Plain TXT",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "OneDrive txt",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "OneDrive SRT",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "OneDrive JSON",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Ingest": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OneDrive JSON": {
+      "main": [
+        []
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          },
+          {
+            "node": "OpenAI Transcribe (Diarize)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "eba31d7c-9f10-4ca0-beef-2906208ac4f7",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b81aa5800d94034c482a375d39418f85e60d71ff4527856a8678b21dc7a917b1"
+  },
+  "id": "ieZwQ5N5rwqmgl8k",
+  "tags": []
+}

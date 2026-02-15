@@ -1,42 +1,38 @@
-# Logs
-logs
-*.log
+# Dependencies
+node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
+package-lock.json
 
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# Coverage
-coverage
-*.lcov
-
-# Dependency directories
-node_modules
-
-# Optional caches
-.npm
-.eslintcache
-.cache
-
-# Env files
+# Environment variables
 .env
-.env.*
+.env.local
+.env.production
 
-# Build output
-dist
-build
+# Uploads & Temporary files
+uploads/*
+!uploads/.gitkeep
+*.tmp
+tmp_*
 
-# OS
+# OS Files
 .DS_Store
+Thumbs.db
+*.swp
+*.swo
 
-# Project specific
-uploads
-sample.csv
-tmp_methods.csv
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# Logs
+*.log
+logs/
 server.out
+server.pid
+
+# Build files
+dist/
+build/
