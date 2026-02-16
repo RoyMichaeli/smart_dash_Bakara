@@ -36,3 +36,6 @@ server.pid
 # Build files
 dist/
 build/
+
+# Vercel
+.vercel/
