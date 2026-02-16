@@ -1,15 +1,14 @@
 {
   "version": 2,
-  "buildCommand": "npm install",
-  "outputDirectory": "public",
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api" },
-    { "source": "/(.*)", "destination": "/dashboard.html" }
-  ],
+  "framework": null,
   "functions": {
     "api/index.js": {
       "maxDuration": 60,
       "memory": 1024
     }
-  }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index.js" },
+    { "source": "/(.*)", "destination": "/dashboard.html" }
+  ]
 }
