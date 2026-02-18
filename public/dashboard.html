@@ -1056,7 +1056,7 @@
                 <select id="datasetSelector" class="dataset-select" onchange="onDatasetChange(this.value)"></select>
             </div>
             <div class="search-box">
-                <input type="text" id="searchInput" placeholder="חיפוש לפי שם קובץ..." />
+                <input type="text" id="searchInput" placeholder="חיפוש לפי מספר מנוי או שם קובץ..." />
             </div>
             <div class="filter-buttons">
                 <button class="filter-btn active" onclick="filterByStatus('all', this)">הכל</button>
@@ -1083,6 +1083,7 @@
                 <table id="dataTable">
                     <thead>
                         <tr>
+                            <th class="sortable" onclick="sortTable('subscriberId')">מספר מנוי</th>
                             <th class="sortable" onclick="sortTable('fileName')">שם הקובץ</th>
                             <th class="sortable" onclick="sortTable('status')">סטטוס סופי</th>
                             <th>הסבר שיטות</th>
@@ -1314,7 +1315,8 @@
                     if (currentFilter !== 'all') {
                         if (!matchesFilter(item, currentFilter)) return false;
                     }
-                    return item.fileName.toLowerCase().includes(searchTerm);
+                    return item.fileName.toLowerCase().includes(searchTerm) ||
+                           (item.subscriberId || '').toLowerCase().includes(searchTerm);
                 });
                 renderTable();
             });
@@ -1456,7 +1458,8 @@
             emptyState.style.display = 'none';
             tbody.innerHTML = filteredData.map((item, index) => `
                 <tr>
-                    <td><strong>${escapeHtml(item.fileName)}</strong></td>
+                    <td><strong>${escapeHtml(item.subscriberId || '-')}</strong></td>
+                    <td>${escapeHtml(item.fileName)}</td>
                     <td>${getStatusBadge(item.status)}</td>
                     <td class="field-cell" onclick="showFieldDetails(${index}, 'methods')" data-tooltip="${getFieldTooltip(item.methods)}">${getFieldStatusIcon(item.methods)}</td>
                     <td class="field-cell" onclick="showFieldDetails(${index}, 'charge')" data-tooltip="${getFieldTooltip(item.charge)}">${getFieldStatusIcon(item.charge)}</td>
@@ -2505,8 +2508,17 @@
             const container = document.getElementById('compareResults');
 
             // --- Summary KPIs ---
+            const hasSubs = (s.matchedBySubscriber || 0) > 0;
+            const hasFileMatch = (s.matchedByFileName || 0) > 0;
+            let matchMethodText = '';
+            if (hasSubs && hasFileMatch) matchMethodText = `${s.matchedBySubscriber} לפי מנוי, ${s.matchedByFileName} לפי שם קובץ`;
+            else if (hasSubs) matchMethodText = `${s.matchedBySubscriber} לפי מספר מנוי`;
+            else if (hasFileMatch) matchMethodText = `${s.matchedByFileName} לפי שם קובץ`;
+
             let html = `<div class="compare-summary-grid">
-                <div class="compare-summary-card blue"><div class="csc-value">${s.totalCompared}</div><div class="csc-label">רשומות הושוו</div></div>
+                <div class="compare-summary-card blue"><div class="csc-value">${s.totalCompared}</div><div class="csc-label">רשומות הושוו</div>
+                    ${matchMethodText ? `<div style="font-size:11px;color:#718096;margin-top:4px">${matchMethodText}</div>` : ''}
+                </div>
                 <div class="compare-summary-card ${meterColor(s.overallStatusAccuracy || 0)}">
                     <div class="csc-value">${s.overallStatusAccuracy !== null ? s.overallStatusAccuracy + '%' : '-'}</div>
                     <div class="csc-label">התאמת סטטוס כללי</div>
@@ -2545,7 +2557,10 @@
             if (matched.length > 0) {
                 html += `<h3 style="color:#2d3748;margin:20px 0 12px;font-size:16px">📋 השוואת רשומות (${matched.length})</h3>`;
                 html += `<div class="table-container"><table class="compare-records-table"><thead><tr>
-                    <th>שם קובץ</th>
+                    <th>מספר מנוי</th>
+                    <th>שם קובץ A</th>
+                    <th>שם קובץ B</th>
+                    <th>התאמה לפי</th>
                     <th>סטטוס AI 🤖</th>
                     <th>סטטוס אנושי 👤</th>
                     <th>התאמה כללית</th>`;
@@ -2561,9 +2576,14 @@
                     const secPct = secTotal > 0 ? Math.round((secMatch / secTotal) * 100) : 0;
                     const ratioColor = secPct === 100 ? '#38a169' : secPct >= 70 ? '#d69e2e' : '#e53e3e';
                     const ratioBg = secPct === 100 ? '#f0fff4' : secPct >= 70 ? '#fffff0' : '#fff5f5';
+                    const matchByLabel = c.matchedBy === 'subscriberId' ? '🔑 מנוי' : '📄 קובץ';
+                    const matchByColor = c.matchedBy === 'subscriberId' ? '#3182ce' : '#718096';
 
                     html += `<tr>
-                        <td><strong>${escapeHtml(c.fileName)}</strong></td>
+                        <td><strong>${escapeHtml(c.subscriberId || '-')}</strong></td>
+                        <td style="font-size:12px;color:#4a5568">${escapeHtml(c.fileName)}</td>
+                        <td style="font-size:12px;color:#4a5568">${escapeHtml(c.fileNameB || c.fileName)}</td>
+                        <td style="text-align:center"><span style="font-size:12px;font-weight:600;color:${matchByColor}">${matchByLabel}</span></td>
                         <td>${getStatusBadge(c.overallA)}</td>
                         <td>${getStatusBadge(c.overallB)}</td>
                         <td style="text-align:center">
@@ -2583,8 +2603,9 @@
                 html += `<h3 style="color:#e53e3e;margin:20px 0 12px;font-size:16px">⚠️ רשומות ללא התאמה (${unmatched.length})</h3>`;
                 html += `<div style="display:flex;flex-wrap:wrap;gap:8px">`;
                 unmatched.forEach(c => {
+                    const label = c.subscriberId ? `מנוי ${escapeHtml(c.subscriberId)}` : escapeHtml(c.fileName);
                     html += `<div style="background:#fff5f5;border:1px solid #fed7d7;border-radius:8px;padding:8px 14px;font-size:13px">
-                        <strong>${escapeHtml(c.fileName)}</strong> <span style="color:#a0aec0">— לא נמצא ב-Dataset B</span>
+                        <strong>${label}</strong> <span style="color:#a0aec0">— לא נמצא ב-Dataset B</span>
                     </div>`;
                 });
                 html += `</div>`;
@@ -2606,7 +2627,12 @@
 
             let html = `<button class="close-btn" onclick="closeDrill()">✕</button>`;
             html += `<h2 style="margin-bottom:6px;color:#2d3748">🔎 השוואה מפורטת</h2>`;
-            html += `<div style="margin-bottom:18px;color:#718096;font-size:14px"><strong>קובץ:</strong> ${escapeHtml(c.fileName)}</div>`;
+            html += `<div style="margin-bottom:18px;color:#718096;font-size:14px">`;
+            if (c.subscriberId) html += `<strong>מספר מנוי:</strong> ${escapeHtml(c.subscriberId)} &nbsp;|&nbsp; `;
+            html += `<strong>קובץ A:</strong> ${escapeHtml(c.fileName)}`;
+            if (c.fileNameB && c.fileNameB !== c.fileName) html += ` &nbsp;|&nbsp; <strong>קובץ B:</strong> ${escapeHtml(c.fileNameB)}`;
+            if (c.matchedBy) html += ` &nbsp;|&nbsp; <span style="color:${c.matchedBy === 'subscriberId' ? '#3182ce' : '#718096'}">התאמה לפי: ${c.matchedBy === 'subscriberId' ? '🔑 מספר מנוי' : '📄 שם קובץ'}</span>`;
+            html += `</div>`;
 
             // Overall status comparison
             html += `<div style="display:flex;gap:14px;margin-bottom:20px;flex-wrap:wrap">

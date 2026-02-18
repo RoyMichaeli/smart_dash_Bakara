@@ -150,8 +150,16 @@ function mapRowToRecord(row) {
     return isNaN(d.getTime()) ? String(rawDate) : d.toISOString().slice(0, 10);
   })();
 
+  const rawSubscriberId = get(
+    'subscriberId', 'SubscriberId', 'subscriber_id',
+    'מספר מנוי', 'מנוי', 'מספר_מנוי',
+    'customerId', 'CustomerId', 'customer_id',
+    'מספר לקוח', 'לקוח', 'מזהה מנוי', 'מזהה לקוח'
+  ) || getByAnyTerm(['מנוי', 'subscriber', 'customer']);
+
   const record = {
     fileName: get('fileName', 'FileName', 'שם קובץ', 'שם הקובץ', 'קובץ'),
+    subscriberId: String(rawSubscriberId || '').trim(),
     status: get('status', 'Status', 'סטטוס', 'סטטוס סופי'),
     methods: get(
       'methods', 'Methods', 'method',
@@ -213,7 +221,37 @@ function mapRowToRecord(row) {
 
 // ─── mapJsonToRecord ───
 
-function mapJsonToRecord(json) {
+function extractSubscriberId(json, uploadFileName) {
+  // 1) Explicit field
+  if (json.subscriberId) return String(json.subscriberId).trim();
+  if (json.subscriber_id) return String(json.subscriber_id).trim();
+  if (json.customerId) return String(json.customerId).trim();
+  if (json.customer_id) return String(json.customer_id).trim();
+  if (json.מספר_מנוי) return String(json.מספר_מנוי).trim();
+  if (json.מנוי) return String(json.מנוי).trim();
+  // 2) From metadata
+  if (json.metadata) {
+    if (json.metadata.subscriberId) return String(json.metadata.subscriberId).trim();
+    if (json.metadata.subscriber_id) return String(json.metadata.subscriber_id).trim();
+    if (json.metadata.customerId) return String(json.metadata.customerId).trim();
+    if (json.metadata.customer_id) return String(json.metadata.customer_id).trim();
+  }
+  // 3) Parse from filename pattern: customer_XXXXXXX_date or XXXXXXX_date
+  //    Check both the JSON's internal fileName and the upload filename
+  const candidates = [uploadFileName, json.originalFileName, json.fileName].filter(Boolean);
+  for (const fname of candidates) {
+    const m = fname.match(/customer[_\-]?(\d{4,})/i);
+    if (m) return m[1];
+  }
+  // 4) Try any leading number sequence of 6+ digits in any filename
+  for (const fname of candidates) {
+    const m2 = fname.match(/(\d{6,})/);
+    if (m2) return m2[1];
+  }
+  return '';
+}
+
+function mapJsonToRecord(json, uploadFileName) {
   const sections = json.sections || {};
 
   const sectionNameToField = {
@@ -256,8 +294,11 @@ function mapJsonToRecord(json) {
     };
   }
 
+  const subscriberId = extractSubscriberId(json, uploadFileName);
+
   const record = {
     fileName: json.originalFileName || json.fileName || 'unknown',
+    subscriberId: subscriberId,
     status: json.finalStatus || 'לא ידוע',
     methods: '⬜', charge: '⬜', address: '⬜', birthDate: '⬜',
     winPromise: '⬜', credit: '⬜', reflection: '⬜',
@@ -390,9 +431,10 @@ app.post('/api/upload-json', jsonUpload.single('file'), async (req, res) => {
     const items = Array.isArray(parsed) ? parsed : [parsed];
     if (items.length === 0) return res.status(400).json({ error: 'קובץ ה-JSON ריק' });
 
-    const records = items.map(mapJsonToRecord);
+    const uploadFileName = req.file.originalname || '';
+    const records = items.map(item => mapJsonToRecord(item, uploadFileName));
     const datasetId = generateDatasetId(req.file.originalname || 'json-import');
-    const fields = ['fileName', 'status', 'methods', 'charge', 'address', 'birthDate', 'winPromise', 'credit', 'reflection', 'transcript'];
+    const fields = ['subscriberId', 'fileName', 'status', 'methods', 'charge', 'address', 'birthDate', 'winPromise', 'credit', 'reflection', 'transcript'];
     const createdAt = new Date().toISOString();
     const name = req.file.originalname || `ייבוא JSON - ${new Date().toLocaleDateString('he-IL')}`;
 
@@ -527,6 +569,7 @@ app.post('/api/qa-result', express.json(), async (req, res) => {
 
     const record = {
       fileName: qaData.fileName || 'unknown',
+      subscriberId: qaData.subscriberId || qaData.subscriber_id || qaData.customerId || qaData.customer_id || qaData.מספר_מנוי || '',
       status: qaData.final_status || qaData.overall || 'לא ידוע',
       methods: { status: qaData.s1_status || '⬜', summary: qaData.s1_why || '', evidence: [qaData.s1_e1, qaData.s1_e2].filter(Boolean), timestamp: qaData.s1_timestamp || '' },
       charge: { status: qaData.s2_status || '⬜', summary: qaData.s2_why || '', evidence: [qaData.s2_e1, qaData.s2_e2].filter(Boolean), timestamp: qaData.s2_timestamp || '' },
@@ -548,7 +591,7 @@ app.post('/api/qa-result', express.json(), async (req, res) => {
         name: `QA Automation - ${new Date().toLocaleDateString('he-IL')}`,
         createdAt: new Date().toISOString(),
         records: [],
-        fields: ['fileName', 'status', 'methods', 'charge', 'address', 'birthDate', 'winPromise', 'credit', 'reflection', 'transcript']
+        fields: ['subscriberId', 'fileName', 'status', 'methods', 'charge', 'address', 'birthDate', 'winPromise', 'credit', 'reflection', 'transcript']
       };
     }
 
@@ -622,10 +665,23 @@ app.get('/api/compare/:idA/:idB', async (req, res) => {
         .trim();
     }
 
+    // Build lookup maps from dataset B — subscriberId first, then fileName
+    const bBySubscriber = new Map();
     const bByName = new Map();
     for (const rec of (dsB.records || [])) {
+      const subId = (rec.subscriberId || '').trim();
+      if (subId && !bBySubscriber.has(subId)) bBySubscriber.set(subId, rec);
       const key = normalizeFileName(rec.fileName);
       if (!bByName.has(key)) bByName.set(key, rec);
+    }
+
+    // Match: prefer subscriberId, fallback to fileName
+    function findMatch(recA) {
+      const subId = (recA.subscriberId || '').trim();
+      if (subId && bBySubscriber.has(subId)) return { rec: bBySubscriber.get(subId), matchedBy: 'subscriberId' };
+      const key = normalizeFileName(recA.fileName);
+      if (bByName.has(key)) return { rec: bByName.get(key), matchedBy: 'fileName' };
+      return null;
     }
 
     const sectionStats = {};
@@ -633,18 +689,26 @@ app.get('/api/compare/:idA/:idB', async (req, res) => {
 
     let overallStatusMatches = 0;
     let totalCompared = 0;
+    let matchedBySubscriber = 0;
+    let matchedByFileName = 0;
     const comparisons = [];
 
     for (const recA of (dsA.records || [])) {
-      const keyA = normalizeFileName(recA.fileName);
-      const recB = bByName.get(keyA);
+      const match = findMatch(recA);
 
-      if (!recB) {
-        comparisons.push({ fileName: recA.fileName, matched: false, overallA: recA.status, overallB: null, sections: null });
+      if (!match) {
+        comparisons.push({
+          fileName: recA.fileName, subscriberId: recA.subscriberId || '',
+          matched: false, matchedBy: null,
+          overallA: recA.status, overallB: null, sections: null
+        });
         continue;
       }
 
+      const recB = match.rec;
       totalCompared++;
+      if (match.matchedBy === 'subscriberId') matchedBySubscriber++;
+      else matchedByFileName++;
 
       const normOverallA = normalizeStatus({ status: recA.status === 'תקין' ? '✅' : recA.status === 'טעון שיפור' ? '⚠️' : recA.status === 'לא תקין' ? '❌' : recA.status });
       const normOverallB = normalizeStatus({ status: recB.status === 'תקין' ? '✅' : recB.status === 'טעון שיפור' ? '⚠️' : recB.status === 'לא תקין' ? '❌' : recB.status });
@@ -656,23 +720,27 @@ app.get('/api/compare/:idA/:idB', async (req, res) => {
         const valB = recB[k];
         const normA = normalizeStatus(valA);
         const normB = normalizeStatus(valB);
-        const match = normA === normB;
+        const matchSec = normA === normB;
 
         if (normA !== 'unknown' || normB !== 'unknown') {
           sectionStats[k].total++;
-          if (match) sectionStats[k].matches++;
+          if (matchSec) sectionStats[k].matches++;
           else sectionStats[k].mismatches++;
         }
 
         sectionComparisons[k] = {
-          label: sectionLabels[k], match,
+          label: sectionLabels[k], match: matchSec,
           ai: { status: displayStatus(valA), summary: getSummary(valA), evidence: getEvidence(valA) },
           human: { status: displayStatus(valB), summary: getSummary(valB), evidence: getEvidence(valB) }
         };
       }
 
       comparisons.push({
-        fileName: recA.fileName, matched: true,
+        fileName: recA.fileName,
+        subscriberId: recA.subscriberId || recB.subscriberId || '',
+        fileNameB: recB.fileName,
+        matched: true,
+        matchedBy: match.matchedBy,
         overallA: recA.status, overallB: recB.status,
         overallMatch: normOverallA === normOverallB,
         sections: sectionComparisons
@@ -694,6 +762,8 @@ app.get('/api/compare/:idA/:idB', async (req, res) => {
       summary: {
         totalCompared,
         unmatched: comparisons.filter(c => !c.matched).length,
+        matchedBySubscriber,
+        matchedByFileName,
         overallStatusAccuracy: totalCompared > 0 ? Math.round((overallStatusMatches / totalCompared) * 100) : null,
         overallStatusMatches,
         sectionAccuracy,

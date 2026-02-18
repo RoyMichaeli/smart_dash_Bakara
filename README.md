@@ -1,257 +1,122 @@
 # QASmart - מערכת ניהול איכות שיחות 🎯
 
-מערכת חכמה לניהול, ניתוח ובקרת איכות של שיחות מכירה ושירות. כולל אינטגרציה מלאה עם n8n לעיבוד אוטומטי של קבצי אודיו.
+מערכת חכמה לניהול, ניתוח ובקרת איכות של שיחות מכירה ושירות.
+כולל אינטגרציה עם n8n לעיבוד אוטומטי, השוואה עמוקה בין AI לאנושי, וזיהוי לפי מספר מנוי.
+
+**Production:** https://qasmart.vercel.app
 
 ## ✨ תכונות עיקריות
 
-### 📊 ניהול נתונים
-- **ייבוא מאקסל/CSV** - העלאה מהירה של נתוני שיחות
-- **מערכת Datasets** - ניהול מספר קבוצות נתונים במקביל
-- **חיפוש וסינון מתקדם** - מציאת שיחות ספציפיות בקלות
-- **מיון גמיש** - לפי כל שדה בטבלה
+- **ייבוא מאקסל/CSV/JSON** — העלאה מהירה של נתוני שיחות
+- **מערכת Datasets** — ניהול מספר קבוצות נתונים במקביל
+- **זיהוי מספר מנוי** — חילוץ אוטומטי מ-JSON, שם קובץ, או metadata
+- **חיפוש וסינון** — לפי מספר מנוי, שם קובץ, או סטטוס
+- **עיבוד אודיו** — Drag & Drop → n8n → Whisper + GPT-4
+- **השוואה עמוקה** — AI vs Human per-section, matching by subscriberId or fileName
+- **ניתוח ו-Pivot** — גרפים, KPIs, ניתוח רב-ממדי
+- **עיצוב מודרני** — RTL, responsive, glass-morphism UI
 
-### 🎤 עיבוד אודיו אוטומטי (חדש!)
-- **Drag & Drop** - גרור קבצי אודיו ישירות לדשבורד
-- **תמלול אוטומטי** - באמצעות Whisper AI
-- **ניתוח איכות** - בדיקה אוטומטית של קריטריונים
-- **זיהוי בעיות** - התרעה על הפרות והפרת כללים
-- **אינטגרציה עם n8n** - workflow מותאם אישית
-
-### 📈 דוחות וניתוחים
-- **סטטיסטיקות בזמן אמת** - מעקב אחר KPIs חשובים
-- **גרפים ויזואליים** - תצוגת נתונים ברורה
-- **Pivot Tables** - ניתוח רב-ממדי של הנתונים
-- **השוואת Datasets** - השוואה בין תקופות/צוותים שונים
-
-### 🎨 ממשק משתמש מתקדם
-- **עיצוב מודרני ונקי** - חוויית משתמש מעולה
-- **תמיכה מלאה בעברית** - כולל RTL
-- **Responsive Design** - עובד מצוין במובייל
-- **מהיר ומגיב** - ללא רענונים מיותרים
-
-## 🚀 התקנה מהירה
-
-### דרישות מקדימות
-- Node.js 18+ מותקן
-- n8n (אופציונלי - לעיבוד אודיו)
-
-### שלב 1: התקנת התלויות
-```bash
-npm install
-```
-
-### שלב 2: הגדרת משתני סביבה (אופציונלי)
-```bash
-# ליצור קובץ .env אם רוצים אינטגרציה עם n8n
-echo "N8N_WEBHOOK_URL=your-n8n-webhook-url" > .env
-echo "PORT=3000" >> .env
-```
-
-### שלב 3: הפעלת השרת
-```bash
-# הפעלה חכמה (מומלץ!) - בודק פורט ומוצא חלופה אם תפוס
-npm run smart-start
-
-# או הפעלה רגילה על פורט 3000
-npm start
-
-# או מצב development עם hot-reload
-npm run dev
-```
-
-### שלב 4: פתיחת הדשבורד
-גש ל-`http://localhost:3000` בדפדפן
-
-## 📁 מבנה הפרויקט
+## 🏗️ ארכיטקטורה
 
 ```
 qasmart/
-├── dashboard.html          # ממשק המשתמש הראשי
-├── server.js              # שרת Express + API endpoints
-├── package.json           # תלויות והגדרות
-├── n8n-workflow-example.json  # דוגמת workflow לn8n
-├── N8N-SETUP.md          # מדריך התקנה מפורט לn8n
-├── uploads/              # תיקיית קבצים זמניים
-└── .env                  # משתני סביבה (לא נשמר ב-git)
+├── api/
+│   └── index.js              # Vercel serverless function (Express)
+├── public/
+│   └── dashboard.html        # UI — served from Vercel CDN
+├── lib/
+│   ├── storage.js            # Supabase Postgres KV abstraction
+│   └── migration.sql         # SQL to create kv_store table
+├── server.js                 # Legacy Express server (local/Render fallback)
+├── vercel.json               # Vercel routing & function config
+├── package.json              # Dependencies & scripts
+├── .env.example              # Environment variables template
+└── .gitignore
 ```
 
-## 🎯 איך משתמשים?
+### Stack
+- **Runtime:** Node.js 18+ / Express 5
+- **Hosting:** Vercel (serverless functions + CDN)
+- **Storage:** Supabase Postgres (`kv_store` table with JSONB)
+- **Local fallback:** In-memory Maps (no DB needed for dev)
+- **File handling:** multer memoryStorage (no disk writes)
+- **Automation:** n8n (Whisper + GPT-4)
 
-### ייבוא נתונים מאקסל
-1. לחץ על **"📥 ייבוא אקסל"**
-2. בחר קובץ Excel/CSV עם עמודות:
-   - שם קובץ, סטטוס, הסבר שיטות, חיוב, כתובת, וכו'
-3. המערכת תייבא ותנתח את הנתונים אוטומטית
+### Data Model
+כל רשומה (record) מכילה:
+- `subscriberId` — מספר מנוי (חילוץ אוטומטי)
+- `fileName` — שם הקובץ המקורי
+- `status` — סטטוס סופי (תקין/טעון שיפור/לא תקין)
+- **7 סקשנים:** `methods`, `charge`, `address`, `birthDate`, `winPromise`, `credit`, `reflection`
+- `transcript` — תמלול השיחה
+- `metadata` — fileId, timestamp, track, confidence, etc.
 
-### עיבוד קובץ אודיו
-1. **גרור קובץ אודיו** לאזור ה-drop zone או לחץ **"📁 בחר קובץ"**
-2. המערכת תעלה את הקובץ ל-n8n
-3. n8n יבצע:
-   - תמלול באמצעות Whisper
-   - ניתוח איכות באמצעות GPT-4
-   - זיהוי בעיות והפרות
-4. התוצאות יוצגו בדשבורד ויתווספו ל-dataset הפעיל
+### השוואה (Compare)
+- **התאמה לפי subscriberId** (עדיפות ראשונה), fallback לפי fileName
+- **Per-section accuracy** — כל סקשן נבדק בנפרד
+- **KPIs:** totalCompared, matchedBySubscriber, matchedByFileName, overallStatusAccuracy, sectionAccuracy
 
-### ניתוח נתונים
-- **לשונית נתונים** - טבלה עם כל השיחות
-- **לשונית ניתוח** - גרפים וסטטיסטיקות
-- **לשונית השוואה** - השוואה בין datasets
+## 🚀 התקנה
 
-## 🔧 אינטגרציה עם n8n
-
-### מה זה n8n?
-n8n הוא כלי אוטומציה חזק (כמו Zapier) שמאפשר לבנות workflows מותאמים אישית.
-
-### למה n8n?
-- **תמלול אוטומטי** - Whisper AI לתמלול מדויק בעברית
-- **ניתוח חכם** - GPT-4 לבדיקת איכות
-- **גמישות מלאה** - התאמה אישית של הבדיקות
-- **אינטגרציות** - חיבור ל-CRM, Email, Slack ועוד
-
-### הקמת n8n בפעם הראשונה
-
-קרא את המדריך המפורט: **[N8N-SETUP.md](./N8N-SETUP.md)**
-
-**התקנה מהירה:**
+### פיתוח מקומי
 ```bash
-# עם Docker (מומלץ)
-docker run -it --rm \
-  --name n8n \
-  -p 5678:5678 \
-  -v ~/.n8n:/home/node/.n8n \
-  n8nio/n8n
-
-# או עם npm
-npm install n8n -g
-n8n start
+npm install
+node api/index.js          # http://localhost:3000 (in-memory storage)
 ```
 
-**ייבוא workflow:**
-1. פתח n8n ב-`http://localhost:5678`
-2. ייבא את `n8n-workflow-example.json`
-3. הגדר OpenAI credentials
-4. העתק את ה-Webhook URL
-5. הוסף ל-.env: `N8N_WEBHOOK_URL=your-webhook-url`
+### עם hot-reload
+```bash
+npm run dev                # nodemon api/index.js
+```
 
-## 🔐 אבטחה
+### משתני סביבה
+```bash
+cp .env.example .env
+# ערוך את .env עם הערכים שלך
+```
 
-המערכת כוללת אמצעי אבטחה מובנים:
-- ✅ הגבלת סוגי קבצים
-- ✅ הגבלת גודל קבצים (10MB Excel, 50MB אודיו)
-- ✅ ניקוי אוטומטי של קבצים זמניים
-- ✅ הסתרת מידע רגיש מהלוגים
-- ✅ משתני סביבה למידע רגיש
+## ☁️ Deployment (Vercel)
 
-### המלצות נוספות
-1. השתמש ב-HTTPS בסביבת production
-2. הגדר authentication לדשבורד
-3. שמור logs לצורכי ביקורת
-4. גבה את הנתונים באופן קבוע
+הפרויקט מחובר ל-GitHub — כל push ל-`main` עושה auto-deploy.
+
+### Deploy ידני
+```bash
+vercel --prod
+```
+
+### Supabase Setup
+1. חבר Supabase דרך Vercel Dashboard → Storage
+2. הרץ את `lib/migration.sql` ב-Supabase SQL Editor
+3. ה-env vars מוגדרים אוטומטית: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
 
 ## 📊 API Endpoints
 
-### נתונים
-- `GET /api/datasets` - רשימת כל ה-datasets
-- `GET /api/dataset/:id` - קבלת dataset ספציפי
-- `POST /api/upload-excel` - ייבוא קובץ Excel/CSV
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/datasets` | רשימת כל ה-datasets |
+| `GET` | `/api/dataset/:id` | dataset ספציפי |
+| `POST` | `/api/upload-excel` | ייבוא Excel/CSV |
+| `POST` | `/api/upload-json` | ייבוא JSON (n8n format) |
+| `POST` | `/api/process-audio` | שליחת אודיו ל-n8n |
+| `POST` | `/api/transcription-callback` | callback מ-n8n |
+| `GET` | `/api/transcription-result/:jobId` | תוצאת תמלול |
+| `POST` | `/api/qa-result` | קבלת תוצאות QA מ-n8n |
+| `GET` | `/api/compare?a=ID&b=ID` | השוואה עמוקה בין datasets |
+| `GET` | `/healthz` | בדיקת תקינות |
 
-### עיבוד אודיו
-- `POST /api/process-audio` - העלאת קובץ אודיו לעיבוד
+## 🔐 אבטחה
 
-### בריאות המערכת
-- `GET /healthz` - בדיקת תקינות השרת
+- הגבלת סוגי וגודל קבצים (10MB Excel, 50MB אודיו)
+- multer memoryStorage — אין כתיבה לדיסק
+- משתני סביבה למידע רגיש
+- Supabase RLS + service_role key
 
-## 🎨 התאמה אישית
+## 📝 הוספת שדות / התאמה
 
-### שינוי קריטריוני בדיקה
-ערוך את ה-prompt ב-n8n workflow (צומת "Analyze Quality"):
-
-```javascript
-אתה בודק איכות לשיחות מכירה. בדוק:
-1. [הקריטריון שלך]
-2. [קריטריון נוסף]
-...
-```
-
-### הוספת שדות לדשבורד
-1. ערוך את `mapRowToRecord` ב-`server.js`
-2. הוסף עמודות ב-`dashboard.html` בטבלה
-3. עדכן את הטופס להוספת רשומה
-
-### שינוי עיצוב
-כל ה-CSS נמצא בתוך `dashboard.html` בתגית `<style>`.
-
-## 🐛 פתרון בעיות נפוצות
-
-### השרת לא עולה
-```bash
-# השתמש בסקריפט החכם שבודק פורט אוטומטית
-npm run smart-start
-
-# או בדוק ידנית אם הפורט תפוס
-lsof -i :3000
-
-# או נסה פורט אחר ידנית
-PORT=3001 npm start
-```
-
-### n8n לא מעבד קבצים
-1. ודא ש-N8N_WEBHOOK_URL מוגדר נכון
-2. בדוק ש-workflow ב-n8n מופעל (Active)
-3. בדוק logs ב-n8n לשגיאות
-
-### תמלול לא מדויק
-1. ודא שאיכות האודיו טובה
-2. נסה להגדיר `language: "he"` ב-Whisper
-3. שקול שימוש ב-model גדול יותר
-
-### הדשבורד ריק
-1. ייבא קובץ Excel לדוגמה
-2. או העלה קובץ אודיו
-3. או הוסף רשומה ידנית
-
-## 📝 דוגמת קובץ Excel
-
-הקובץ צריך לכלול עמודות (בעברית או אנגלית):
-
-| שם קובץ | סטטוס סופי | הסבר שיטות | הסבר חיוב | כתובת | תאריך לידה | הבטחת זכייה | אשראי | שיקוף שיחה | תמלול |
-|---------|-----------|-------------|-----------|--------|------------|-------------|--------|-----------|--------|
-| call_001.mp3 | תקין | הסבר מפורט | כן | רח' הרצל 1 | 1990-01-01 | לא | לא | כן | ... |
-
-## 🌟 תכונות עתידיות (Roadmap)
-
-- [ ] אימות משתמשים (Login/Register)
-- [ ] תמיכה בקבצי וידאו
-- [ ] dashboard למנהלים עם analytics מתקדם
-- [ ] אפליקציית מובייל
-- [ ] ניתוח רגשות (Sentiment Analysis)
-- [ ] דוחות PDF אוטומטיים
-- [ ] API פתוח למפתחים
-- [ ] אינטגרציה עם CRM (Salesforce, HubSpot)
-
-## 🤝 תרומה לפרויקט
-
-רוצה לתרום? נשמח!
-1. Fork the repository
-2. צור branch חדש: `git checkout -b feature/amazing-feature`
-3. Commit השינויים: `git commit -m 'Add amazing feature'`
-4. Push לbranch: `git push origin feature/amazing-feature`
-5. פתח Pull Request
-
-## 📄 רישיון
-
-MIT License - אתה חופשי להשתמש, לשנות ולהפיץ.
-
-## 💬 צריך עזרה?
-
-- 📧 פתח Issue בגיטהאב
-- 💬 בקר בקהילת n8n
-- 📚 קרא את [N8N-SETUP.md](./N8N-SETUP.md) למידע מפורט
+1. **Backend:** עדכן `mapRowToRecord` / `mapJsonToRecord` ב-`api/index.js` (ו-`server.js` לתאימות)
+2. **Frontend:** עדכן את הטבלה ב-`public/dashboard.html`
+3. **Compare:** עדכן `sectionKeys` ו-`sectionLabels` ב-endpoint `/api/compare`
 
 ---
 
 **נבנה עם ❤️ לצורך בקרת איכות שיחות**
-
-הצלחה! 🚀
-
-

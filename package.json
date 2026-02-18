@@ -3,12 +3,10 @@
   "version": "1.0.0",
   "main": "api/index.js",
   "scripts": {
-    "start": "node server.js",
-    "smart-start": "./start.sh",
-    "render-build": "echo Skipping build",
-    "render-start": "node server.js",
+    "start": "node api/index.js",
     "dev": "nodemon api/index.js",
-    "vercel-dev": "vercel dev"
+    "vercel-dev": "vercel dev",
+    "legacy": "node server.js"
   },
   "keywords": [],
   "author": "",

@@ -10,11 +10,10 @@ package-lock.json
 .env.local
 .env.production
 
-# Uploads & Temporary files
-uploads/*
-!uploads/.gitkeep
+# Temporary files
 *.tmp
 tmp_*
+output/
 
 # OS Files
 .DS_Store
