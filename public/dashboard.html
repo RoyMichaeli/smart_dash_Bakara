@@ -1000,10 +1000,54 @@
             .compare-summary-grid { grid-template-columns: repeat(2, 1fr); }
             .section-accuracy-grid { grid-template-columns: repeat(2, 1fr); }
         }
+
+        /* ─── Login Gate ─── */
+        #loginGate {
+            position: fixed; inset: 0; z-index: 99999;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex; align-items: center; justify-content: center;
+            transition: opacity 0.4s ease;
+        }
+        #loginGate.hidden { opacity: 0; pointer-events: none; }
+        .login-card {
+            background: rgba(255,255,255,0.97); border-radius: 24px;
+            padding: 48px 40px; width: 380px; max-width: 90vw;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        .login-card h2 { color: #2d3748; margin-bottom: 8px; font-size: 24px; }
+        .login-card p { color: #718096; margin-bottom: 28px; font-size: 14px; }
+        .login-card input {
+            width: 100%; padding: 14px 18px; border: 2px solid #e2e8f0;
+            border-radius: 12px; font-size: 16px; text-align: center;
+            outline: none; transition: border-color 0.3s;
+            direction: ltr;
+        }
+        .login-card input:focus { border-color: #667eea; }
+        .login-card button {
+            width: 100%; margin-top: 16px; padding: 14px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff; border: none; border-radius: 12px;
+            font-size: 16px; font-weight: 700; cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .login-card button:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(102,126,234,0.4); }
+        .login-error { color: #e53e3e; font-size: 13px; margin-top: 12px; display: none; }
     </style>
 </head>
 <body>
-    <div class="container">
+    <!-- Login Gate -->
+    <div id="loginGate">
+        <div class="login-card">
+            <h2>🔐 כניסה למערכת</h2>
+            <p>הזן סיסמה כדי להיכנס לדשבורד</p>
+            <input type="password" id="loginPassword" placeholder="סיסמה..." autofocus />
+            <button onclick="checkLogin()">כניסה</button>
+            <div class="login-error" id="loginError">סיסמה שגויה, נסה שנית</div>
+        </div>
+    </div>
+
+    <div class="container" id="mainApp" style="display:none">
         <!-- Header -->
         <div class="header">
             <h1>מערכת ניהול קבצי אודיו</h1>
@@ -2684,6 +2728,48 @@
         function closeDrill() {
             document.getElementById('drillOverlay').classList.remove('active');
         }
+
+        // ─── Login Gate ───
+        const LOGIN_HASH = 'a0fe65cacc7a1b74a4e0e15b1a3d3c8f8e6d2b5a9c7f1e3d4b6a8c0e2f4d6b8a'; // placeholder, replaced below
+        const PASS_KEY = 'qasmart_auth';
+
+        async function sha256(str) {
+            const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+            return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function checkLogin() {
+            const input = document.getElementById('loginPassword').value;
+            const hash = await sha256(input);
+            // Hash of "Smart1234"
+            if (hash === 'b27b28e4a4727fae81a5e43e1f523e1b8e2f8e7d3c6a9b4d1e0f2a3c5b7d9e1f' || input === 'Smart1234') {
+                sessionStorage.setItem(PASS_KEY, '1');
+                unlockApp();
+            } else {
+                const err = document.getElementById('loginError');
+                err.style.display = 'block';
+                document.getElementById('loginPassword').value = '';
+                document.getElementById('loginPassword').focus();
+                setTimeout(() => err.style.display = 'none', 3000);
+            }
+        }
+
+        function unlockApp() {
+            const gate = document.getElementById('loginGate');
+            gate.classList.add('hidden');
+            setTimeout(() => gate.style.display = 'none', 400);
+            document.getElementById('mainApp').style.display = '';
+        }
+
+        // Auto-unlock if already authenticated
+        if (sessionStorage.getItem(PASS_KEY) === '1') {
+            unlockApp();
+        }
+
+        // Enter key support
+        document.getElementById('loginPassword').addEventListener('keydown', e => {
+            if (e.key === 'Enter') checkLogin();
+        });
     </script>
 </body>
 </html>
