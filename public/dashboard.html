@@ -60,6 +60,10 @@
             padding: 30px;
             margin-bottom: 30px;
             box-shadow: var(--shadow-md);
+            position: relative;
+        }
+        .logout-btn {
+            position: absolute; top: 20px; left: 20px;
         }
 
         .header h1 {
@@ -1101,7 +1105,7 @@
         .compare-records-table tr.cmp-row--has-mismatch td { background: rgba(254, 215, 215, 0.15); }
         .compare-records-table tr.cmp-row--has-mismatch:hover td { background: rgba(254, 215, 215, 0.3); }
         .compare-records-table td.cmp-cell--mismatch {
-            border-inline-start: 3px solid var(--c-error-accent); background: rgba(254, 215, 215, 0.2); font-weight: 600;
+            background: rgba(254, 215, 215, 0.2); font-weight: 600;
         }
 
         .drill-modal-overlay {
@@ -1416,6 +1420,7 @@
     <div class="container">
         <!-- Header -->
         <div class="header">
+            <a href="/api/logout" class="btn btn--ghost btn--sm logout-btn">🚪 יציאה</a>
             <h1>מערכת ניהול קבצי אודיו</h1>
             <p class="text-secondary">ניהול וניתוח מתקדם של קבצי שיחות</p>
         </div>

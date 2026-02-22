@@ -5,6 +5,7 @@ import multer from 'multer';
 import XLSX from 'xlsx';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -17,6 +18,30 @@ app.use(cors());
 app.use(express.json());
 // Reduce fingerprinting surface
 app.disable('x-powered-by');
+
+// --- Authentication ---
+const AUTH_PASSWORD = process.env.AUTH_PASSWORD || 'Smart1234';
+const AUTH_SECRET = process.env.AUTH_SECRET || 'qasmart-secret-key-2024';
+const AUTH_TOKEN = crypto.createHmac('sha256', AUTH_SECRET).update('qasmart-auth').digest('hex');
+
+function getAuthCookie(req) {
+  const cookies = req.headers.cookie || '';
+  const match = cookies.split(';').map(c => c.trim()).find(c => c.startsWith('qasmart_auth='));
+  return match ? match.split('=')[1] : null;
+}
+
+function isAuthenticated(req) {
+  return getAuthCookie(req) === AUTH_TOKEN;
+}
+
+// Auth middleware — runs BEFORE static files
+app.use((req, res, next) => {
+  const openPaths = ['/login.html', '/api/login', '/healthz', '/api/callback/', '/api/qa-result'];
+  if (openPaths.some(p => req.path === p || req.path.startsWith(p))) return next();
+  if (isAuthenticated(req)) return next();
+  if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Unauthorized' });
+  res.redirect('/login.html');
+});
 
 // Serve static frontend files
 app.use(express.static(__dirname));
@@ -618,6 +643,22 @@ function mapJsonToRecord(json, uploadFileName) {
 
   return record;
 }
+
+// --- Auth endpoints ---
+app.post('/api/login', (req, res) => {
+  const { password } = req.body || {};
+  if (password === AUTH_PASSWORD) {
+    const isSecure = req.headers['x-forwarded-proto'] === 'https' || req.secure;
+    res.setHeader('Set-Cookie', `qasmart_auth=${AUTH_TOKEN}; Path=/; HttpOnly; SameSite=Strict; Max-Age=604800${isSecure ? '; Secure' : ''}`);
+    return res.json({ success: true });
+  }
+  res.status(401).json({ error: 'סיסמה שגויה' });
+});
+
+app.get('/api/logout', (_req, res) => {
+  res.setHeader('Set-Cookie', 'qasmart_auth=; Path=/; HttpOnly; Max-Age=0');
+  res.redirect('/login.html');
+});
 
 app.post('/api/upload-excel', upload.single('file'), (req, res) => {
   try {
@@ -1245,9 +1286,12 @@ app.get('/healthz', (_req, res) => {
   }
 });
 
-// Fallback: serve dashboard.html at root
+// Serve dashboard (protected by auth middleware)
 app.get('/', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'dashboard.html'));
+  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+app.get('/dashboard.html', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
 // Only start listening when running directly (not on Vercel serverless)
