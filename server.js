@@ -1103,6 +1103,18 @@ app.get('/api/compare/:idA/:idB', (req, res) => {
       return [];
     }
 
+    function getFieldMeta(val) {
+      if (!val || typeof val !== 'object') return {};
+      const meta = {};
+      if (val.rawText) meta.rawText = val.rawText;
+      if (val.checkName) meta.checkName = val.checkName;
+      if (val.statusText) meta.statusText = val.statusText;
+      if (val.value) meta.value = val.value;
+      if (val.critical) meta.critical = true;
+      if (val.details) meta.details = val.details;
+      return meta;
+    }
+
     // Build lookup map from dataset B by subscriberId
     const bBySubscriber = new Map();
     for (const rec of (dsB.records || [])) {
@@ -1166,8 +1178,8 @@ app.get('/api/compare/:idA/:idB', (req, res) => {
         sectionComparisons[k] = {
           label: sectionLabels[k],
           match: matchSec,
-          ai: { status: displayStatus(valA), summary: getSummary(valA), evidence: getEvidence(valA) },
-          human: { status: displayStatus(valB), summary: getSummary(valB), evidence: getEvidence(valB) }
+          ai: { status: displayStatus(valA), summary: getSummary(valA), evidence: getEvidence(valA), ...getFieldMeta(valA) },
+          human: { status: displayStatus(valB), summary: getSummary(valB), evidence: getEvidence(valB), ...getFieldMeta(valB) }
         };
       }
 

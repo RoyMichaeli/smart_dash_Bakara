@@ -1212,6 +1212,32 @@
         .fd-value-box:hover { box-shadow: var(--shadow-hover); }
         .fd-meta-bar { transition: background .2s; }
         .fd-meta-bar:hover { background: var(--c-bg-subtle); }
+        /* === Section Compare (enhanced drill sides) === */
+        .sc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .sc-header h2 { font-size: 1.3rem; color: var(--c-text-primary); }
+        .sc-side-content { display: flex; flex-direction: column; gap: 10px; }
+        .sc-side-content .fd-explanation {
+            font-size: 13px; line-height: 1.7; color: var(--c-text-secondary);
+            background: #fff; padding: 10px 14px; border-radius: var(--r-sm);
+        }
+        .sc-side-content .fd-evidence-list { display: flex; flex-direction: column; gap: 6px; }
+        .sc-side-content .fd-evidence-card {
+            font-size: 12px; color: var(--c-text-muted); padding: 6px 10px;
+            background: #fff; border-radius: 6px;
+        }
+        .sc-side-content .fd-value-box {
+            font-size: 13px; padding: 8px 12px;
+            background: var(--c-success-surface); color: var(--c-success-text);
+            border-radius: var(--r-sm); font-weight: 600;
+        }
+        .sc-side-content .fd-details-grid {
+            background: #fff; padding: 10px 14px; border-radius: var(--r-sm);
+        }
+        .sc-side-content .fd-raw { margin-top: 6px; }
+        .sc-side-content .fd-raw summary { padding: 8px 12px; font-size: 12px; }
+        .sc-side-content .fd-raw-content { padding: 12px; font-size: 12px; max-height: 250px; }
+        .sc-side-content .fd-status-lg { font-size: 1.1rem; }
+        .sc-no-data { color: var(--c-text-faint); font-size: 13px; font-style: italic; }
         /* === Audio result classes === */
         .result-field { margin-bottom: 10px; }
         .result-field-lg { margin-bottom: 15px; }
@@ -2941,7 +2967,7 @@
                         </td>`;
                     sectionKeys.forEach(k => {
                         const sec = c.sections[k];
-                        html += `<td class="match-icon" title="${sec.match ? 'התאמה' : 'אי-התאמה'}">${sec.match ? '🟢' : '🔴'}</td>`;
+                        html += `<td class="match-icon field-cell" onclick="openSectionCompare(${idx},'${k}')" title="לחץ לפירוט">${sec.match ? '🟢' : '🔴'}</td>`;
                     });
                     html += `<td><button class="drill-btn" onclick="openDrill(${idx})">🔎 פירוט</button></td>`;
                     html += `</tr>`;
@@ -3025,6 +3051,78 @@
                     </div>
                 </div>`;
             });
+
+            document.getElementById('drillModal').innerHTML = html;
+            document.getElementById('drillOverlay').classList.add('active');
+        }
+
+        function renderSideDetail(side) {
+            if (!side) return '<div class="sc-no-data">אין נתונים</div>';
+            let h = '';
+            // Status
+            if (side.status) {
+                h += `<div class="fd-status-lg">${side.status}</div>`;
+            }
+            // Critical
+            if (side.critical) {
+                h += `<div class="fd-critical-banner">⚠️ כשל קריטי</div>`;
+            }
+            // Summary
+            if (side.summary) {
+                h += `<div class="fd-explanation">${escapeHtml(side.summary)}</div>`;
+            }
+            // Evidence
+            if (side.evidence && side.evidence.length > 0) {
+                h += `<div class="fd-evidence-heading">📝 ראיות:</div>`;
+                h += `<div class="fd-evidence-list">`;
+                side.evidence.forEach(e => {
+                    h += `<div class="fd-evidence-card">${renderEvidenceItem(e)}</div>`;
+                });
+                h += `</div>`;
+            }
+            // Value
+            if (side.value) {
+                h += `<div class="fd-value-box">📅 ערך: ${escapeHtml(side.value)}</div>`;
+            }
+            // Details grid
+            if (side.details && typeof side.details === 'object') {
+                h += `<div class="fd-details-grid">`;
+                for (const [k, v] of Object.entries(side.details)) {
+                    if (v) h += `<div class="fd-detail-row"><span class="fd-detail-label">${escapeHtml(k)}:</span><span class="fd-detail-val">${escapeHtml(String(v))}</span></div>`;
+                }
+                h += `</div>`;
+            }
+            // Raw text
+            if (side.rawText) {
+                h += `<div class="fd-raw"><details><summary><span class="fd-raw-arrow">▸</span> פירוט</summary><div class="fd-raw-content">${formatRawText(side.rawText)}</div></details></div>`;
+            }
+            return h;
+        }
+
+        function openSectionCompare(matchedIndex, sectionKey) {
+            if (!lastFilteredMatched.length) return;
+            const c = lastFilteredMatched[matchedIndex];
+            if (!c || !c.sections || !c.sections[sectionKey]) return;
+            const sec = c.sections[sectionKey];
+
+            let html = `<button class="close-btn" onclick="closeDrill()">✕</button>`;
+            html += `<div class="sc-header">
+                <h2>${escapeHtml(sec.label)}</h2>
+                <span class="match-badge ${sec.match ? 'agree' : 'disagree'}">${sec.match ? '✅ תואם' : '❌ אי-התאמה'}</span>
+            </div>`;
+            if (c.subscriberId) {
+                html += `<div class="drill-meta"><strong>מספר מנוי:</strong> ${escapeHtml(c.subscriberId)}</div>`;
+            }
+            html += `<div class="drill-side-by-side">
+                <div class="drill-side ai-side">
+                    <div class="side-label">🤖 AI</div>
+                    <div class="sc-side-content">${renderSideDetail(sec.ai)}</div>
+                </div>
+                <div class="drill-side human-side">
+                    <div class="side-label">👤 אנושי</div>
+                    <div class="sc-side-content">${renderSideDetail(sec.human)}</div>
+                </div>
+            </div>`;
 
             document.getElementById('drillModal').innerHTML = html;
             document.getElementById('drillOverlay').classList.add('active');
