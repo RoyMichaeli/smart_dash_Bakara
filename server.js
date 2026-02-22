@@ -128,56 +128,101 @@ function parseAiFieldContent(text) {
   if (trimmed.length <= 10) return trimmed;
 
   const statusMap = {
-    'תקין': '✅',
     'לא תקין': '❌',
     'טעון שיפור': '⚠️',
+    'תקין': '✅',
     'חסר': '⬜',
     'לא רלוונטי': '⬜'
   };
 
+  let checkName = '';
   let status = '⬜';
+  let statusText = '';
   let summary = '';
   let evidence = [];
   let critical = false;
+  let value = null;
+  let addressCompleteness = null;
 
-  // Extract status from סטטוס: line
-  const statusMatch = trimmed.match(/סטטוס\s*:\s*(.+)/);
-  if (statusMatch) {
-    const rawStatus = statusMatch[1].trim();
-    for (const [heb, icon] of Object.entries(statusMap)) {
-      if (rawStatus.includes(heb)) { status = icon; break; }
+  // Pass 1: line-by-line extraction
+  const lines = trimmed.split('\n');
+  for (const line of lines) {
+    const l = line.trim();
+    if (!l) continue;
+    const checkNameMatch = l.match(/^שם הבדיקה\s*:\s*(.+)/);
+    if (checkNameMatch) { checkName = checkNameMatch[1].trim(); continue; }
+    const statusLineMatch = l.match(/^סטטוס\s*:\s*(.+)/);
+    if (statusLineMatch) {
+      statusText = statusLineMatch[1].trim();
+      for (const [heb, icon] of Object.entries(statusMap)) {
+        if (statusText.includes(heb)) { status = icon; break; }
+      }
+      continue;
     }
-  } else {
-    // Try first line as status
-    const firstLine = trimmed.split('\n')[0].trim();
+    const explainMatch = l.match(/^הסבר\s*:\s*(.+)/);
+    if (explainMatch) { summary = explainMatch[1].trim(); continue; }
+    const valueMatch = l.match(/^ערך\s*:\s*(.+)/);
+    if (valueMatch) { value = valueMatch[1].trim(); continue; }
+    const addrMatch = l.match(/כתובת\s*:\s*שלמות\s*:\s*(.+)/);
+    if (addrMatch) { addressCompleteness = addrMatch[1].trim(); continue; }
+    if (/קריטי/.test(l)) { critical = true; }
+  }
+
+  // Status fallback: first line
+  if (!statusText) {
+    const firstLine = lines[0].trim();
     for (const [heb, icon] of Object.entries(statusMap)) {
-      if (firstLine.includes(heb)) { status = icon; break; }
+      if (firstLine.includes(heb)) { status = icon; statusText = heb; break; }
     }
   }
 
-  // Extract explanation from הסבר: line
-  const explainMatch = trimmed.match(/הסבר\s*:\s*(.+)/);
-  if (explainMatch) {
-    summary = explainMatch[1].trim();
+  // Pass 2: parse --- ראיה N --- evidence blocks
+  const evidenceBlocks = trimmed.split(/---\s*ראיה\s*\d+\s*---/);
+  if (evidenceBlocks.length > 1) {
+    // First element is the text before the first evidence marker — skip it
+    for (let i = 1; i < evidenceBlocks.length; i++) {
+      const block = evidenceBlocks[i].trim();
+      if (!block) continue;
+      const textMatch = block.match(/טקסט\s*:\s*(.+)/);
+      const durationMatch = block.match(/משך\s*\(שניות\)\s*:\s*(\d+)/);
+      if (textMatch) {
+        let evText = textMatch[1].trim();
+        let timestamp = null;
+        // Extract [M:SS] timestamp
+        const tsMatch = evText.match(/\[(\d+:\d{2})\]/);
+        if (tsMatch) {
+          timestamp = tsMatch[1];
+          evText = evText.replace(/\[\d+:\d{2}\]\s*/, '').trim();
+        }
+        // Remove surrounding quotes
+        evText = evText.replace(/^[""]|[""]$/g, '').trim();
+        evidence.push({
+          text: evText,
+          timestamp,
+          durationSec: durationMatch ? parseInt(durationMatch[1], 10) : null
+        });
+      }
+    }
   }
 
-  // Extract quoted evidence
-  const quoteRegex = /"([^"]+)"/g;
-  let m;
-  while ((m = quoteRegex.exec(trimmed)) !== null) {
-    evidence.push(m[1]);
-  }
-
-  // Detect critical flag
-  if (/קריטי/.test(trimmed)) {
-    critical = true;
+  // Fallback: if no structured evidence blocks, try quoted text regex
+  if (evidence.length === 0) {
+    const quoteRegex = /[""]([^""]+)[""]/g;
+    let m;
+    while ((m = quoteRegex.exec(trimmed)) !== null) {
+      evidence.push({ text: m[1], timestamp: null, durationSec: null });
+    }
   }
 
   return {
+    checkName: checkName || null,
     status,
+    statusText: statusText || null,
     summary,
     evidence,
-    ...(critical ? { critical: true } : {}),
+    value,
+    addressCompleteness,
+    critical,
     rawText: trimmed
   };
 }
@@ -290,7 +335,8 @@ function mapRowToRecord(row, isAiFormat = false) {
   ) || getByAnyTerm(['מנוי', 'subscriber', 'customer', 'לקוח']);
 
   const record = {
-    fileName: get('fileName', 'FileName', 'שם קובץ', 'שם הקובץ', 'קובץ'),
+    fileName: get('fileName', 'FileName', 'שם קובץ', 'שם הקובץ', 'קובץ',
+      'קובץ WAV מאוחד', 'קובץ קול (URL)', 'קובץ WAV מקומי'),
     subscriberId: String(rawSubscriberId || '').trim(),
     status: getAI('status', 'Status', 'סטטוס', 'סטטוס סופי'),
     methods: getAI(
@@ -360,6 +406,60 @@ function mapRowToRecord(row, isAiFormat = false) {
         record[field] = parseAiFieldContent(val);
       }
     }
+
+    // Extract fileName from path/URL if it's a full path
+    if (record.fileName && (record.fileName.includes('\\') || record.fileName.includes('/'))) {
+      const parts = record.fileName.replace(/\\/g, '/').split('/');
+      record.fileName = parts[parts.length - 1] || record.fileName;
+    }
+
+    // Cross-reference critical fields from (AI) כשלים קריטיים column
+    const criticalFieldsRaw = get('(AI) כשלים קריטיים', 'כשלים קריטיים');
+    if (criticalFieldsRaw) {
+      const critNameToKey = {
+        'הסבר שיטות': 'methods', 'שיטות': 'methods',
+        'הסבר חיוב': 'charge', 'חיוב': 'charge',
+        'כתובת': 'address', 'תאריך לידה': 'birthDate',
+        'הבטחת זכייה': 'winPromise', 'הבטחת זכיה': 'winPromise',
+        'אשראי': 'credit', 'שיקוף שיחה': 'reflection', 'שיקוף': 'reflection'
+      };
+      const critNames = String(criticalFieldsRaw).split(',').map(s => s.trim()).filter(Boolean);
+      for (const name of critNames) {
+        const key = critNameToKey[name];
+        if (key && typeof record[key] === 'object' && record[key] !== null) {
+          record[key].critical = true;
+        }
+      }
+    }
+
+    // Build details for birthDate and address fields
+    if (typeof record.birthDate === 'object' && record.birthDate !== null) {
+      if (record.birthDate.value) {
+        record.birthDate.details = { 'תאריך לידה': record.birthDate.value };
+      }
+    }
+    if (typeof record.address === 'object' && record.address !== null) {
+      if (record.address.addressCompleteness) {
+        const compLabel = record.address.addressCompleteness === 'full' ? 'מלאה' :
+                          record.address.addressCompleteness === 'none' ? 'חסרה' :
+                          record.address.addressCompleteness;
+        record.address.details = { 'שלמות כתובת': compLabel };
+      }
+    }
+
+    // Record metadata
+    record.meta = {
+      customerName: get('שם לקוח', 'שם הלקוח') || '',
+      agent: get('נציג', 'שם נציג') || '',
+      department: get('מחלקה') || '',
+      purchaseDate: get('תאריך רכישה') || '',
+      aiCounts: {
+        pass: parseInt(get('(AI) עבר') || '0', 10) || 0,
+        fail: parseInt(get('(AI) לא עבר') || '0', 10) || 0,
+        improvement: parseInt(get('(AI) טעון שיפור') || '0', 10) || 0
+      }
+    };
+
     // Normalize status to canonical Hebrew
     if (typeof record.status === 'string') {
       record.status = normalizeAiStatus(record.status);
@@ -430,12 +530,18 @@ function mapJsonToRecord(json, uploadFileName) {
     return '⬜';
   }
 
-  // Extract flat evidence text array from rich evidence objects
-  function flattenEvidence(evidenceArr) {
+  // Normalize evidence array: preserve structure when available, flatten otherwise
+  function normalizeEvidence(evidenceArr) {
     if (!Array.isArray(evidenceArr)) return [];
     return evidenceArr.map(e => {
       if (typeof e === 'string') return e;
-      if (typeof e === 'object' && e !== null) return e.text || e.fullText || JSON.stringify(e);
+      if (typeof e === 'object' && e !== null) {
+        return {
+          text: e.text || e.fullText || '',
+          timestamp: e.time || e.timestamp || '',
+          durationSec: e.durationSec || e.duration_sec || null
+        };
+      }
       return String(e);
     }).filter(Boolean);
   }
@@ -446,7 +552,7 @@ function mapJsonToRecord(json, uploadFileName) {
     return {
       status: statusToIcon(section.status),
       summary: section.reason || '',
-      evidence: flattenEvidence(section.evidence),
+      evidence: normalizeEvidence(section.evidence),
       timestamp: (section.evidence && section.evidence[0] && section.evidence[0].time) || '',
       ...(section.critical ? { critical: true } : {}),
       ...(section.note !== undefined ? { note: section.note } : {})

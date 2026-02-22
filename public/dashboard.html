@@ -1000,6 +1000,85 @@
             .compare-summary-grid { grid-template-columns: repeat(2, 1fr); }
             .section-accuracy-grid { grid-template-columns: repeat(2, 1fr); }
         }
+        /* Premium Field Details */
+        .fd-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 2px solid #e2e8f0; }
+        .fd-check-name { font-size: 1.15rem; font-weight: 700; color: #2d3748; }
+        .fd-status-lg { font-size: 1.4rem; padding: 8px 20px; border-radius: 12px; font-weight: 800; display: inline-block; }
+        .fd-status-lg.success { background: #c6f6d5; color: #22543d; }
+        .fd-status-lg.warning { background: #fef3c7; color: #92400e; }
+        .fd-status-lg.error { background: #fed7d7; color: #991b1b; }
+        .fd-status-lg.unknown { background: #edf2f7; color: #718096; }
+        .fd-critical-banner {
+            background: linear-gradient(135deg, #fff5f5, #fed7d7);
+            border: 2px solid #fc8181; color: #c53030;
+            padding: 14px 18px; border-radius: 10px;
+            margin-bottom: 16px; font-weight: 700;
+            text-align: center; font-size: 1.1em;
+        }
+        .fd-explanation {
+            background: #ebf8ff; border-right: 4px solid #3182ce;
+            padding: 14px 18px; border-radius: 0 10px 10px 0;
+            margin-bottom: 18px; line-height: 1.8; color: #2c5282; font-size: 14px;
+        }
+        .fd-evidence-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+        .fd-evidence-card {
+            display: flex; gap: 12px; align-items: flex-start;
+            background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+            padding: 12px 16px; transition: box-shadow 0.2s;
+        }
+        .fd-evidence-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .fd-ts-tag {
+            background: #edf2f7; color: #4a5568;
+            padding: 4px 10px; border-radius: 6px;
+            font-size: 12px; font-weight: 700; font-family: monospace;
+            white-space: nowrap; min-width: 50px; text-align: center;
+        }
+        .fd-ev-text { flex: 1; font-size: 13px; color: #2d3748; line-height: 1.6; }
+        .fd-ev-dur { font-size: 11px; color: #a0aec0; margin-top: 4px; }
+        .fd-value-box {
+            background: #f0fff4; border: 1px solid #c6f6d5;
+            border-radius: 10px; padding: 12px 16px; margin-bottom: 14px;
+            font-weight: 600; color: #276749;
+        }
+        .fd-details-grid {
+            background: #f7fafc; border-radius: 10px; padding: 14px 18px;
+            margin-bottom: 14px; display: grid; gap: 8px;
+        }
+        .fd-details-grid .fd-detail-row { display: flex; gap: 8px; font-size: 13px; }
+        .fd-details-grid .fd-detail-label { font-weight: 700; color: #4a5568; min-width: 100px; }
+        .fd-details-grid .fd-detail-val { color: #2d3748; }
+        .fd-raw details { margin-top: 16px; }
+        .fd-raw summary { cursor: pointer; color: #a0aec0; font-size: 12px; padding: 8px 0; user-select: none; }
+        .fd-raw pre {
+            background: #f7fafc; padding: 12px; border-radius: 8px;
+            font-size: 11px; white-space: pre-wrap; direction: rtl;
+            max-height: 200px; overflow-y: auto; color: #718096; margin-top: 6px;
+        }
+        /* Meta info bar */
+        .fd-meta-bar {
+            display: flex; flex-wrap: wrap; gap: 16px;
+            padding: 12px 16px; background: #f7fafc; border-radius: 10px;
+            margin-bottom: 16px; font-size: 13px; color: #4a5568;
+        }
+        .fd-meta-bar strong { color: #2d3748; }
+        .fd-counts-bar {
+            display: flex; gap: 12px; margin-bottom: 16px;
+        }
+        .fd-count-chip {
+            padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 700;
+        }
+        .fd-count-chip.pass { background: #c6f6d5; color: #22543d; }
+        .fd-count-chip.fail { background: #fed7d7; color: #991b1b; }
+        .fd-count-chip.improve { background: #fef3c7; color: #92400e; }
+        /* Field card critical dot */
+        .fd-card-critical::after {
+            content: ''; display: inline-block; width: 8px; height: 8px;
+            background: #e53e3e; border-radius: 50%; margin-right: 6px; vertical-align: middle;
+        }
+        /* Drill evidence timestamp */
+        .drill-side .side-evidence li {
+            display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap;
+        }
     </style>
 </head>
 <body>
@@ -1486,10 +1565,22 @@
             return 'לחץ לפרטים נוספים';
         }
         
+        function renderEvidenceItem(e) {
+            const isObj = typeof e === 'object' && e !== null && e.text;
+            const text = isObj ? e.text : String(e);
+            const ts = isObj ? e.timestamp : null;
+            const dur = isObj ? e.durationSec : null;
+            let h = '';
+            if (ts) h += `<span class="fd-ts-tag">[${escapeHtml(ts)}]</span>`;
+            h += `<span>"${escapeHtml(text)}"</span>`;
+            if (dur) h += `<span class="fd-ev-dur"> ⏱ ${dur} שניות</span>`;
+            return h;
+        }
+
         function showFieldDetails(index, fieldName) {
             const record = filteredData[index];
             const field = record[fieldName];
-            
+
             const fieldNames = {
                 methods: 'הסבר שיטות',
                 charge: 'הסבר חיוב',
@@ -1500,41 +1591,80 @@
                 reflection: 'שיקוף שיחה',
                 transcript: 'תמלול'
             };
-            
+
+            // AI premium layout — early return
+            if (typeof field === 'object' && field !== null && field.checkName) {
+                let c = `<div class="fd-header">
+                    <span class="fd-check-name">${escapeHtml(field.checkName)}</span>
+                    <span class="fd-status-lg ${getStatusClass(field.status)}">${field.status || '⬜'} ${escapeHtml(field.statusText || '')}</span>
+                </div>`;
+                if (field.critical) {
+                    c += `<div class="fd-critical-banner">⚠️ כשל קריטי</div>`;
+                }
+                if (field.summary) {
+                    c += `<div class="fd-explanation">${escapeHtml(field.summary)}</div>`;
+                }
+                if (field.evidence && field.evidence.length > 0) {
+                    c += `<div style="margin-bottom:8px;font-weight:700;color:#4a5568">📝 ראיות מהשיחה:</div>`;
+                    c += `<div class="fd-evidence-list">`;
+                    field.evidence.forEach(e => {
+                        c += `<div class="fd-evidence-card">${renderEvidenceItem(e)}</div>`;
+                    });
+                    c += `</div>`;
+                }
+                if (field.value) {
+                    c += `<div class="fd-value-box">📅 ערך: ${escapeHtml(field.value)}</div>`;
+                }
+                if (field.details) {
+                    c += `<div class="fd-details-grid">`;
+                    for (const [k, v] of Object.entries(field.details)) {
+                        if (v) c += `<div class="fd-detail-row"><span class="fd-detail-label">${escapeHtml(k)}:</span><span class="fd-detail-val">${escapeHtml(String(v))}</span></div>`;
+                    }
+                    c += `</div>`;
+                }
+                if (field.rawText) {
+                    c += `<div class="fd-raw"><details><summary>▶ טקסט גולמי</summary><pre>${escapeHtml(field.rawText)}</pre></details></div>`;
+                }
+                showCustomModal(c);
+                return;
+            }
+
+            // Standard paths (transcript, JSON-import objects, plain strings)
             let content = `<h2>${fieldNames[fieldName] || fieldName}</h2>`;
             content += `<div style="margin-bottom: 20px;"><strong>קובץ:</strong> ${escapeHtml(record.fileName)}</div>`;
-            
+
             if (fieldName === 'transcript') {
                 content += `<div style="background: #f7fafc; padding: 15px; border-radius: 8px; max-height: 400px; overflow-y: auto; text-align: right; white-space: pre-wrap;">${escapeHtml(record.transcript || 'אין תמלול')}</div>`;
             } else if (typeof field === 'object' && field !== null) {
                 if (field.critical) {
-                    content += `<div style="background: #fff5f5; border: 2px solid #fc8181; color: #c53030; padding: 12px 16px; border-radius: 8px; margin-bottom: 15px; font-weight: bold; text-align: center; font-size: 1.1em;">⚠️ כשל קריטי</div>`;
+                    content += `<div class="fd-critical-banner">⚠️ כשל קריטי</div>`;
                 }
                 content += `<div class="status-badge ${getStatusClass(field.status)}" style="font-size: 1.2em; margin-bottom: 15px;">${field.status} ${field.summary || ''}</div>`;
-                
+
                 if (field.evidence && field.evidence.length > 0) {
-                    content += `<div style="margin-top: 20px;"><h3 style="color: #4a5568; margin-bottom: 10px;">📝 ציטוטים מהשיחה:</h3><ul style="background: #f7fafc; padding: 20px; border-radius: 8px; text-align: right;">`;
+                    content += `<div style="margin-top: 20px;"><h3 style="color: #4a5568; margin-bottom: 10px;">📝 ציטוטים מהשיחה:</h3>`;
+                    content += `<div class="fd-evidence-list">`;
                     field.evidence.forEach(e => {
-                        content += `<li style="margin-bottom: 10px; padding: 8px; background: white; border-radius: 4px;">"${escapeHtml(e)}"</li>`;
+                        content += `<div class="fd-evidence-card">${renderEvidenceItem(e)}</div>`;
                     });
-                    content += `</ul></div>`;
+                    content += `</div></div>`;
                 }
-                
+
                 if (field.timestamp) {
                     content += `<div style="margin-top: 15px; padding: 10px; background: #edf2f7; border-radius: 6px;"><strong>⏱️ זמן בשיחה:</strong> ${escapeHtml(field.timestamp)}</div>`;
                 }
-                
+
                 if (field.details) {
-                    content += `<div style="margin-top: 15px;"><h3 style="color: #4a5568; margin-bottom: 10px;">פרטים נוספים:</h3><div style="background: #f7fafc; padding: 15px; border-radius: 8px;">`;
+                    content += `<div class="fd-details-grid" style="margin-top: 15px;">`;
                     for (const [key, value] of Object.entries(field.details)) {
-                        if (value) content += `<div style="margin-bottom: 5px;"><strong>${key}:</strong> ${escapeHtml(value)}</div>`;
+                        if (value) content += `<div class="fd-detail-row"><span class="fd-detail-label">${escapeHtml(key)}:</span><span class="fd-detail-val">${escapeHtml(String(value))}</span></div>`;
                     }
-                    content += `</div></div>`;
+                    content += `</div>`;
                 }
             } else {
                 content += `<div style="background: #f7fafc; padding: 15px; border-radius: 8px;">${escapeHtml(String(field || 'אין מידע'))}</div>`;
             }
-            
+
             showCustomModal(content);
         }
         
@@ -1548,9 +1678,30 @@
         function viewFullRecord(index) {
             const record = filteredData[index];
             let content = `<h2>פרטי רשומה מלאים</h2>`;
-            content += `<div style="margin-bottom: 20px;"><strong>שם קובץ:</strong> ${escapeHtml(record.fileName)}</div>`;
-            content += `<div style="margin-bottom: 20px;"><strong>סטטוס כללי:</strong> ${getStatusBadge(record.status)}</div>`;
-            
+            content += `<div style="margin-bottom:12px"><strong>מספר מנוי:</strong> ${escapeHtml(record.subscriberId || '-')} &nbsp;|&nbsp; <strong>שם קובץ:</strong> ${escapeHtml(record.fileName)}</div>`;
+
+            if (record.meta) {
+                const m = record.meta;
+                let metaItems = [];
+                if (m.customerName) metaItems.push(`<strong>שם לקוח:</strong> ${escapeHtml(m.customerName)}`);
+                if (m.agent) metaItems.push(`<strong>נציג:</strong> ${escapeHtml(m.agent)}`);
+                if (m.department) metaItems.push(`<strong>מחלקה:</strong> ${escapeHtml(m.department)}`);
+                if (m.purchaseDate) metaItems.push(`<strong>תאריך רכישה:</strong> ${escapeHtml(m.purchaseDate)}`);
+                if (metaItems.length > 0) {
+                    content += `<div class="fd-meta-bar">${metaItems.join(' &nbsp;|&nbsp; ')}</div>`;
+                }
+                if (m.aiCounts) {
+                    const ac = m.aiCounts;
+                    content += `<div class="fd-counts-bar">`;
+                    if (ac.pass != null) content += `<span class="fd-count-chip pass">✅ ${ac.pass} עבר</span>`;
+                    if (ac.fail != null) content += `<span class="fd-count-chip fail">❌ ${ac.fail} לא עבר</span>`;
+                    if (ac.improvement != null) content += `<span class="fd-count-chip improve">⚠️ ${ac.improvement} טעון שיפור</span>`;
+                    content += `</div>`;
+                }
+            }
+
+            content += `<div style="margin-bottom:16px"><strong>סטטוס כללי:</strong> ${getStatusBadge(record.status)}</div>`;
+
             const fields = [
                 { key: 'methods', label: 'הסבר שיטות' },
                 { key: 'charge', label: 'הסבר חיוב' },
@@ -1560,18 +1711,19 @@
                 { key: 'credit', label: 'אשראי' },
                 { key: 'reflection', label: 'שיקוף שיחה' }
             ];
-            
-            content += `<div style="display: grid; gap: 15px;">`;
+
+            content += `<div style="display:grid;gap:12px">`;
             fields.forEach(({ key, label }) => {
                 const field = record[key];
                 const status = typeof field === 'object' ? field.status : getFieldStatusIcon(field);
-                const summary = typeof field === 'object' ? field.summary : (typeof field === 'string' ? field : '');
-                content += `<div style="background: #f7fafc; padding: 12px; border-radius: 8px; cursor: pointer;" onclick="showFieldDetails(${index}, '${key}')">
-                    <strong>${status} ${label}:</strong> ${escapeHtml(summary.substring(0, 80))}${summary.length > 80 ? '...' : ''}
+                const summary = typeof field === 'object' ? (field.summary || '') : (typeof field === 'string' ? field : '');
+                const isCritical = typeof field === 'object' && field.critical;
+                content += `<div style="background:#f7fafc;padding:12px;border-radius:8px;cursor:pointer;${isCritical ? 'border-right:4px solid #e53e3e;' : ''}" onclick="showFieldDetails(${index}, '${key}')">
+                    <strong>${status} ${label}${isCritical ? ' <span style="color:#e53e3e">●</span>' : ''}:</strong> ${escapeHtml(String(summary).substring(0, 80))}${String(summary).length > 80 ? '...' : ''}
                 </div>`;
             });
             content += `</div>`;
-            
+
             showCustomModal(content);
         }
         
@@ -2694,13 +2846,13 @@
                             <div class="side-label">🤖 AI</div>
                             <div class="side-status">${sec.ai.status || '-'}</div>
                             <div class="side-summary">${escapeHtml(sec.ai.summary || 'אין נימוק')}</div>
-                            ${sec.ai.evidence && sec.ai.evidence.length > 0 ? `<ul class="side-evidence">${sec.ai.evidence.map(e => `<li>"${escapeHtml(e)}"</li>`).join('')}</ul>` : ''}
+                            ${sec.ai.evidence && sec.ai.evidence.length > 0 ? `<ul class="side-evidence">${sec.ai.evidence.map(e => `<li>${renderEvidenceItem(e)}</li>`).join('')}</ul>` : ''}
                         </div>
                         <div class="drill-side human-side">
                             <div class="side-label">👤 אנושי</div>
                             <div class="side-status">${sec.human.status || '-'}</div>
                             <div class="side-summary">${escapeHtml(sec.human.summary || 'אין נימוק')}</div>
-                            ${sec.human.evidence && sec.human.evidence.length > 0 ? `<ul class="side-evidence">${sec.human.evidence.map(e => `<li>"${escapeHtml(e)}"</li>`).join('')}</ul>` : ''}
+                            ${sec.human.evidence && sec.human.evidence.length > 0 ? `<ul class="side-evidence">${sec.human.evidence.map(e => `<li>${renderEvidenceItem(e)}</li>`).join('')}</ul>` : ''}
                         </div>
                     </div>
                 </div>`;
