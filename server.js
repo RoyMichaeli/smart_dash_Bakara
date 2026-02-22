@@ -997,30 +997,17 @@ app.get('/api/compare/:idA/:idB', (req, res) => {
       return [];
     }
 
-    // Normalize fileName for fuzzy matching
-    function normalizeFileName(name) {
-      return String(name || '').trim().toLowerCase()
-        .replace(/\.(wav|mp3|m4a|json|xlsx?)$/i, '')
-        .replace(/[_\-\s]+/g, ' ')
-        .trim();
-    }
-
-    // Build lookup maps from dataset B — subscriberId first, then fileName
+    // Build lookup map from dataset B by subscriberId
     const bBySubscriber = new Map();
-    const bByName = new Map();
     for (const rec of (dsB.records || [])) {
       const subId = (rec.subscriberId || '').trim();
       if (subId && !bBySubscriber.has(subId)) bBySubscriber.set(subId, rec);
-      const key = normalizeFileName(rec.fileName);
-      if (!bByName.has(key)) bByName.set(key, rec);
     }
 
-    // Match: prefer subscriberId, fallback to fileName
+    // Match by subscriberId only
     function findMatch(recA) {
       const subId = (recA.subscriberId || '').trim();
       if (subId && bBySubscriber.has(subId)) return { rec: bBySubscriber.get(subId), matchedBy: 'subscriberId' };
-      const key = normalizeFileName(recA.fileName);
-      if (bByName.has(key)) return { rec: bByName.get(key), matchedBy: 'fileName' };
       return null;
     }
 
@@ -1033,7 +1020,6 @@ app.get('/api/compare/:idA/:idB', (req, res) => {
     let overallStatusMatches = 0;
     let totalCompared = 0;
     let matchedBySubscriber = 0;
-    let matchedByFileName = 0;
 
     const comparisons = [];
 
@@ -1051,8 +1037,7 @@ app.get('/api/compare/:idA/:idB', (req, res) => {
 
       const recB = match.rec;
       totalCompared++;
-      if (match.matchedBy === 'subscriberId') matchedBySubscriber++;
-      else matchedByFileName++;
+      matchedBySubscriber++;
 
       const normOverallA = normalizeStatus({ status: recA.status === 'תקין' ? '✅' : recA.status === 'טעון שיפור' ? '⚠️' : recA.status === 'לא תקין' ? '❌' : recA.status });
       const normOverallB = normalizeStatus({ status: recB.status === 'תקין' ? '✅' : recB.status === 'טעון שיפור' ? '⚠️' : recB.status === 'לא תקין' ? '❌' : recB.status });
@@ -1116,7 +1101,6 @@ app.get('/api/compare/:idA/:idB', (req, res) => {
         totalCompared,
         unmatched: comparisons.filter(c => !c.matched).length,
         matchedBySubscriber,
-        matchedByFileName,
         overallStatusAccuracy: totalCompared > 0 ? Math.round((overallStatusMatches / totalCompared) * 100) : null,
         overallStatusMatches,
         sectionAccuracy,
