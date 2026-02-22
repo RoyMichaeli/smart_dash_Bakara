@@ -978,6 +978,12 @@
                 max-width: 95%;
                 padding: 20px;
             }
+
+            .cmp-filter-bar { flex-direction: column; align-items: stretch; }
+            .cmp-filter-bar__toggle { width: 100%; }
+            .cmp-filter-bar__toggle .btn { flex: 1; }
+            .cmp-filter-bar__divider { width: 100%; height: 1px; }
+            .cmp-filter-bar__clear { margin-inline-start: 0; text-align: center; }
         }
 
         /* ===== Deep Comparison Styles ===== */
@@ -1045,6 +1051,58 @@
         .compare-records-table tr:hover td { background: var(--c-bg-light); }
         .compare-records-table .match-icon { font-size: 18px; text-align: center; }
         /* drill-btn now uses .btn .btn--ghost .btn--sm */
+
+        /* === Compare Mismatch Filter Bar === */
+        .cmp-filter-bar {
+            display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+            background: #fff; border-radius: var(--r-lg); padding: 14px 18px;
+            margin-bottom: 16px; box-shadow: var(--shadow-sm); border: 1px solid var(--c-border);
+        }
+        .cmp-filter-bar__toggle {
+            display: inline-flex; gap: 0; border-radius: var(--r-sm);
+            overflow: hidden; border: 2px solid var(--c-border);
+        }
+        .cmp-filter-bar__toggle .btn {
+            border-radius: 0; border: none; padding: 8px 16px; font-size: 13px;
+        }
+        .cmp-filter-bar__toggle .btn:first-child { border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+        .cmp-filter-bar__toggle .btn:last-child  { border-radius: var(--r-sm) 0 0 var(--r-sm); }
+        .cmp-filter-bar__divider { width: 1px; height: 28px; background: var(--c-border); margin: 0 4px; }
+        .cmp-filter-bar__chips { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .cmp-filter-chip {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 14px; border-radius: var(--r-full); font-size: 13px; font-weight: 500;
+            cursor: pointer; border: 2px solid var(--c-border); background: transparent;
+            color: var(--c-text-secondary); transition: all var(--t-fast);
+        }
+        .cmp-filter-chip:hover { background: var(--c-bg-subtle); border-color: var(--c-border-hover); }
+        .cmp-filter-chip.active {
+            background: var(--c-error-surface); border-color: var(--c-error-border); color: var(--c-error-text);
+        }
+        .cmp-filter-chip__count {
+            display: inline-flex; align-items: center; justify-content: center;
+            min-width: 22px; height: 22px; padding: 0 6px; border-radius: var(--r-full);
+            background: var(--c-error-bg); color: var(--c-error-accent); font-size: 12px; font-weight: 700;
+        }
+        .cmp-filter-chip.active .cmp-filter-chip__count {
+            background: var(--c-error-accent); color: white;
+        }
+        .cmp-filter-bar__clear {
+            margin-inline-start: auto; font-size: 13px; color: var(--c-text-muted);
+            cursor: pointer; background: none; border: none; padding: 6px 10px;
+            transition: color var(--t-fast);
+        }
+        .cmp-filter-bar__clear:hover { color: var(--c-error-accent); }
+        .cmp-filter-bar__result-count {
+            font-size: 13px; color: var(--c-text-muted); white-space: nowrap; margin-top: 4px;
+        }
+
+        /* Mismatch row/cell visual emphasis */
+        .compare-records-table tr.cmp-row--has-mismatch td { background: rgba(254, 215, 215, 0.15); }
+        .compare-records-table tr.cmp-row--has-mismatch:hover td { background: rgba(254, 215, 215, 0.3); }
+        .compare-records-table td.cmp-cell--mismatch {
+            border-inline-start: 3px solid var(--c-error-accent); background: rgba(254, 215, 215, 0.2); font-weight: 600;
+        }
 
         .drill-modal-overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 2000;
@@ -1383,25 +1441,6 @@
         </div>
 
         <!-- Controls -->
-        <!-- Audio Upload Section -->
-        <div class="controls" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; margin-bottom: 20px;">
-            <div style="flex: 1; min-width: 100%;">
-                <h3 style="margin-bottom: 10px; display: flex; align-items: center; gap: 10px;">
-                    🎤 העלאת קובץ אודיו לבדיקה
-                </h3>
-                <div id="audioDropZone" class="audio-drop-zone">
-                    <div class="drop-zone-content">
-                        <div class="audio-drop-zone-emoji">🎧</div>
-                        <div class="audio-drop-zone-title">גרור קובץ אודיו לכאן</div>
-                        <div class="audio-drop-zone-or">או</div>
-                        <button class="btn btn--secondary" onclick="triggerAudioUpload()" style="background: white; color: var(--c-processing);">📁 בחר קובץ</button>
-                        <div class="audio-drop-zone-hint">נתמך: MP3, WAV, M4A, OGG (עד 50MB)</div>
-                    </div>
-                    <input type="file" id="audioInput" accept="audio/*,.mp3,.wav,.m4a,.ogg,.flac" style="display:none" onchange="handleAudioFile(this.files)" />
-                </div>
-            </div>
-        </div>
-
         <div class="controls">
             <div>
                 <label for="datasetSelector" class="label" style="display:block;margin-bottom:6px">Dataset</label>
@@ -1655,6 +1694,7 @@
         let data = []; // active dataset records
         let filteredData = [];
         let currentFilter = 'all';
+        let compareFilterState = { onlyMismatches: false, sectionKey: null };
         let currentSort = { column: null, ascending: true };
         let editingIndex = -1;
         let chartJsLoaded = false;
@@ -1704,6 +1744,7 @@
             const savedActiveId = localStorage.getItem('activeDatasetId');
             const savedCompareA = localStorage.getItem('compareA');
             const savedCompareB = localStorage.getItem('compareB');
+            try { const cf = localStorage.getItem('compareFilterState'); if (cf) compareFilterState = JSON.parse(cf); } catch (_) {}
             const savedDim = localStorage.getItem('analyticsDim');
             const savedColDim = localStorage.getItem('analyticsColDim');
             fetchDatasets().then(() => {
@@ -3029,6 +3070,35 @@
             return 'red';
         }
 
+        function computeMismatchCounts(comparisons) {
+            const keys = ['methods','charge','address','birthDate','winPromise','credit','reflection'];
+            const perSection = {}; keys.forEach(k => { perSection[k] = 0; });
+            let anyMismatch = 0;
+            comparisons.forEach(c => {
+                if (!c.matched || !c.sections) return;
+                let hasAny = false;
+                keys.forEach(k => { if (c.sections[k] && !c.sections[k].match) { perSection[k]++; hasAny = true; } });
+                if (hasAny) anyMismatch++;
+            });
+            return { perSection, anyMismatch };
+        }
+
+        function setCompareFilter(onlyMismatches, sectionKey) {
+            compareFilterState.onlyMismatches = onlyMismatches;
+            compareFilterState.sectionKey = sectionKey;
+            localStorage.setItem('compareFilterState', JSON.stringify(compareFilterState));
+            if (lastCompareData) renderCompareResults(lastCompareData);
+        }
+
+        function clearCompareFilter() { setCompareFilter(false, null); }
+
+        function toggleMismatchOnly(val) { setCompareFilter(val, compareFilterState.sectionKey); }
+
+        function toggleSectionFilter(key) {
+            const newKey = compareFilterState.sectionKey === key ? null : key;
+            setCompareFilter(newKey ? true : compareFilterState.onlyMismatches, newKey);
+        }
+
         function renderCompareResults(cmpData) {
             const s = cmpData.summary;
             const container = document.getElementById('compareResults');
@@ -3051,6 +3121,16 @@
                     const fnA = (c.fileName || '').toLowerCase();
                     const fnB = (c.fileNameB || '').toLowerCase();
                     if (!sid.includes(searchTerm) && !fnA.includes(searchTerm) && !fnB.includes(searchTerm)) return false;
+                }
+                // Mismatch filters
+                if (compareFilterState.onlyMismatches && c.matched && c.sections) {
+                    const keys = ['methods','charge','address','birthDate','winPromise','credit','reflection'];
+                    const hasMismatch = keys.some(k => c.sections[k] && !c.sections[k].match);
+                    if (!hasMismatch) return false;
+                }
+                if (compareFilterState.sectionKey && c.matched && c.sections) {
+                    const sec = c.sections[compareFilterState.sectionKey];
+                    if (!sec || sec.match) return false;
                 }
                 return true;
             });
@@ -3093,13 +3173,46 @@
             }
             html += `</div>`;
 
+            // --- Mismatch Filter Bar ---
+            const sectionKeys = ['methods','charge','address','birthDate','winPromise','credit','reflection'];
+            const sectionLabelsShort = { methods:'שיטות', charge:'חיוב', address:'כתובת', birthDate:'ת.לידה', winPromise:'הבטחת זכייה', credit:'אשראי', reflection:'שיקוף' };
+            const allMatchedComparisons = allComparisons.filter(c => c.matched);
+            const mismatchCounts = computeMismatchCounts(allMatchedComparisons);
+            const isCompareFiltered = compareFilterState.onlyMismatches || compareFilterState.sectionKey;
+
+            html += `<div class="cmp-filter-bar">`;
+            html += `<div class="cmp-filter-bar__toggle">
+                <button class="btn btn--ghost btn--sm ${!compareFilterState.onlyMismatches ? 'active' : ''}" onclick="toggleMismatchOnly(false)">הכל</button>
+                <button class="btn btn--ghost btn--sm ${compareFilterState.onlyMismatches ? 'active' : ''}" onclick="toggleMismatchOnly(true)">שונים בלבד (${mismatchCounts.anyMismatch})</button>
+            </div>`;
+            html += `<div class="cmp-filter-bar__divider"></div>`;
+            html += `<div class="cmp-filter-bar__chips">`;
+            sectionKeys.forEach(k => {
+                const count = mismatchCounts.perSection[k];
+                const isActive = compareFilterState.sectionKey === k;
+                html += `<button class="cmp-filter-chip ${isActive ? 'active' : ''}" onclick="toggleSectionFilter('${k}')">
+                    ${sectionLabelsShort[k]}
+                    <span class="cmp-filter-chip__count">${count}</span>
+                </button>`;
+            });
+            html += `</div>`;
+            if (isCompareFiltered) {
+                html += `<button class="cmp-filter-bar__clear" onclick="clearCompareFilter()">✕ נקה סינון</button>`;
+            }
+            html += `</div>`;
+
             // --- Records comparison table ---
             const matched = filteredComparisons.filter(c => c.matched);
             const unmatched = filteredComparisons.filter(c => !c.matched);
             lastFilteredMatched = matched;
 
-            const isFiltered = currentFilter !== 'all' || searchTerm;
+            const isFiltered = currentFilter !== 'all' || searchTerm || isCompareFiltered;
             const filterNote = isFiltered ? ` <span class="cmp-filter-note">— מסונן</span>` : '';
+
+            // Result count
+            if (isCompareFiltered) {
+                html += `<div class="cmp-filter-bar__result-count">מציג ${matched.length}/${allMatchedComparisons.length} רשומות</div>`;
+            }
 
             if (matched.length > 0) {
                 html += `<h3 class="cmp-records-heading">📋 השוואת רשומות (${matched.length})${filterNote}</h3>`;
@@ -3108,8 +3221,6 @@
                     <th>סטטוס AI 🤖</th>
                     <th>סטטוס אנושי 👤</th>
                     <th>התאמה כללית</th>`;
-                const sectionKeys = ['methods','charge','address','birthDate','winPromise','credit','reflection'];
-                const sectionLabelsShort = { methods:'שיטות', charge:'חיוב', address:'כתובת', birthDate:'ת.לידה', winPromise:'הבטחת זכייה', credit:'אשראי', reflection:'שיקוף' };
                 sectionKeys.forEach(k => { html += `<th>${sectionLabelsShort[k]}</th>`; });
                 html += `<th>פעולות</th></tr></thead><tbody>`;
 
@@ -3119,7 +3230,8 @@
                     sectionKeys.forEach(k => { if (c.sections[k]) { secTotal++; if (c.sections[k].match) secMatch++; } });
                     const secPct = secTotal > 0 ? Math.round((secMatch / secTotal) * 100) : 0;
                     const ratioClass = secPct === 100 ? 'green' : secPct >= 70 ? 'yellow' : 'red';
-                    html += `<tr>
+                    const hasMismatchInRow = sectionKeys.some(k => c.sections[k] && !c.sections[k].match);
+                    html += `<tr class="${hasMismatchInRow ? 'cmp-row--has-mismatch' : ''}">
                         <td><strong>${escapeHtml(c.subscriberId || '-')}</strong></td>
                         <td>${getStatusBadge(c.overallA)}</td>
                         <td>${getStatusBadge(c.overallB)}</td>
@@ -3128,7 +3240,7 @@
                         </td>`;
                     sectionKeys.forEach(k => {
                         const sec = c.sections[k];
-                        html += `<td class="match-icon field-cell" onclick="openSectionCompare(${idx},'${k}')" title="לחץ לפירוט">${sec.match ? '🟢' : '🔴'}</td>`;
+                        html += `<td class="match-icon field-cell${!sec.match ? ' cmp-cell--mismatch' : ''}" onclick="openSectionCompare(${idx},'${k}')" title="לחץ לפירוט">${sec.match ? '🟢' : '🔴'}</td>`;
                     });
                     html += `<td><button class="btn btn--ghost btn--sm" onclick="openDrill(${idx})">🔎 פירוט</button></td>`;
                     html += `</tr>`;
