@@ -1063,12 +1063,48 @@
         .fd-details-grid .fd-detail-row { display: flex; gap: 8px; font-size: 13px; }
         .fd-details-grid .fd-detail-label { font-weight: 700; color: #4a5568; min-width: 100px; }
         .fd-details-grid .fd-detail-val { color: #2d3748; }
-        .fd-raw details { margin-top: 16px; }
-        .fd-raw summary { cursor: pointer; color: #a0aec0; font-size: 12px; padding: 8px 0; user-select: none; }
-        .fd-raw pre {
-            background: #f7fafc; padding: 12px; border-radius: 8px;
-            font-size: 11px; white-space: pre-wrap; direction: rtl;
-            max-height: 200px; overflow-y: auto; color: #718096; margin-top: 6px;
+        .fd-raw { margin-top: 16px; }
+        .fd-raw details {
+            border: 1px solid var(--c-border); border-radius: var(--r-md);
+            overflow: hidden; transition: box-shadow .2s;
+        }
+        .fd-raw details:hover { box-shadow: var(--shadow-hover); }
+        .fd-raw details[open] { box-shadow: var(--shadow-sm); }
+        .fd-raw summary {
+            cursor: pointer; color: var(--c-text-secondary); font-size: 13px; font-weight: 600;
+            padding: 12px 16px; background: var(--c-bg-light); user-select: none;
+            display: flex; align-items: center; gap: 8px; transition: background .2s;
+            list-style: none;
+        }
+        .fd-raw summary::-webkit-details-marker { display: none; }
+        .fd-raw summary .fd-raw-arrow {
+            display: inline-block; transition: transform .2s; font-size: 12px;
+        }
+        .fd-raw details[open] summary .fd-raw-arrow { transform: rotate(90deg); }
+        .fd-raw summary:hover { background: var(--c-bg-subtle); }
+        .fd-raw-content {
+            padding: 16px; font-size: 13px; line-height: 1.9; direction: rtl;
+            max-height: 350px; overflow-y: auto; color: var(--c-text-primary);
+            border-top: 1px solid var(--c-border);
+        }
+        .fd-raw-content .rl { padding: 2px 0; }
+        .fd-raw-content .rl--ev {
+            background: var(--c-ai-bg); padding: 6px 12px; border-radius: var(--r-sm);
+            margin: 8px 0; font-weight: 700; color: var(--c-ai-blue); font-size: 12px;
+        }
+        .fd-raw-content .rl--hdr { font-weight: 700; color: var(--c-text-primary); margin-top: 6px; }
+        .fd-raw-content .rl--crit { color: var(--c-error-accent); font-weight: 700; }
+        .fd-raw-content .rl--status {
+            display: inline-block; padding: 2px 10px; border-radius: 4px;
+            font-weight: 700; margin: 4px 0;
+        }
+        .fd-raw-content .rl--status.s-pass { background: var(--c-success-bg); color: var(--c-success-text); }
+        .fd-raw-content .rl--status.s-fail { background: var(--c-error-bg); color: var(--c-error-text); }
+        .fd-raw-content .rl--status.s-warn { background: var(--c-warning-bg); color: var(--c-warning-text); }
+        .fd-raw-content .rl--quote {
+            border-right: 3px solid var(--c-ai-blue); padding: 4px 12px;
+            margin: 4px 0; background: rgba(49,130,206,.04); border-radius: 0 6px 6px 0;
+            font-style: italic; color: var(--c-text-secondary);
         }
         /* Meta info bar */
         .fd-meta-bar {
@@ -1675,6 +1711,29 @@
             return 'לחץ לפרטים נוספים';
         }
         
+        function formatRawText(text) {
+            if (!text) return '';
+            return escapeHtml(text).split('\n').map(line => {
+                const t = line.trim();
+                if (!t) return '';
+                if (/^---\s*ראיה\s*\d+\s*---$/.test(t))
+                    return `<div class="rl rl--ev">${line}</div>`;
+                if (/^(שם הבדיקה|סטטוס|הסבר|ערך|כתובת|טקסט|משך)(\s*\(.*?\))?:/.test(t))
+                    return `<div class="rl rl--hdr">${line}</div>`;
+                if (t.includes('קריטי') || t.includes('⚠️'))
+                    return `<div class="rl rl--crit">${line}</div>`;
+                if (/^תקין$/.test(t))
+                    return `<div class="rl"><span class="rl--status s-pass">${line}</span></div>`;
+                if (/^לא תקין$/.test(t))
+                    return `<div class="rl"><span class="rl--status s-fail">${line}</span></div>`;
+                if (/^טעון שיפור$/.test(t))
+                    return `<div class="rl"><span class="rl--status s-warn">${line}</span></div>`;
+                if (/^\[?\d+:\d+\]?\s*"/.test(t) || (t.startsWith('"') && t.endsWith('"')))
+                    return `<div class="rl rl--quote">${line}</div>`;
+                return `<div class="rl">${line}</div>`;
+            }).join('');
+        }
+
         function renderEvidenceItem(e) {
             const isObj = typeof e === 'object' && e !== null && e.text;
             const text = isObj ? e.text : String(e);
@@ -1733,7 +1792,7 @@
                     c += `</div>`;
                 }
                 if (field.rawText) {
-                    c += `<div class="fd-raw"><details><summary>▶ טקסט גולמי</summary><pre>${escapeHtml(field.rawText)}</pre></details></div>`;
+                    c += `<div class="fd-raw"><details><summary><span class="fd-raw-arrow">▸</span> פירוט</summary><div class="fd-raw-content">${formatRawText(field.rawText)}</div></details></div>`;
                 }
                 showCustomModal(c);
                 return;
