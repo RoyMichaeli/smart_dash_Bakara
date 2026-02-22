@@ -8,6 +8,6 @@
   },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.js" },
-    { "source": "/(.*)", "destination": "/dashboard.html" }
+    { "source": "/(.*)", "destination": "/api/index.js" }
   ]
 }

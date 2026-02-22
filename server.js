@@ -40,6 +40,13 @@ function normalizeHeader(raw) {
     .trim();
 }
 
+function detectAiFormat(sheetName, firstRow) {
+  if (normalizeHeader(sheetName) === normalizeHeader('בקרת שיחות')) return true;
+  if (normalizeHeader(sheetName) === normalizeHeader('Smart')) return false;
+  const headers = Object.keys(firstRow);
+  return headers.filter(h => h.trim().startsWith('(AI)')).length >= 3;
+}
+
 function generateDatasetId(originalName = '') {
   const safe = originalName.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 60);
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}${safe ? '-' + safe : ''}`;
@@ -60,10 +67,10 @@ function computeDatasetStats(records) {
   };
 }
 
-// Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, 'uploads');
+// Ensure uploads directory exists (use /tmp on Vercel)
+const uploadsDir = process.env.VERCEL ? '/tmp/uploads' : path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir);
+  fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
 // Configure multer for file uploads
@@ -114,8 +121,80 @@ const audioUpload = multer({
   limits: { fileSize: 50 * 1024 * 1024 } // 50MB for audio files
 });
 
+// Parse structured Hebrew text from AI-generated XLSX columns into rich field objects
+function parseAiFieldContent(text) {
+  if (!text || typeof text !== 'string') return text;
+  const trimmed = text.trim();
+  if (trimmed.length <= 10) return trimmed;
+
+  const statusMap = {
+    'תקין': '✅',
+    'לא תקין': '❌',
+    'טעון שיפור': '⚠️',
+    'חסר': '⬜',
+    'לא רלוונטי': '⬜'
+  };
+
+  let status = '⬜';
+  let summary = '';
+  let evidence = [];
+  let critical = false;
+
+  // Extract status from סטטוס: line
+  const statusMatch = trimmed.match(/סטטוס\s*:\s*(.+)/);
+  if (statusMatch) {
+    const rawStatus = statusMatch[1].trim();
+    for (const [heb, icon] of Object.entries(statusMap)) {
+      if (rawStatus.includes(heb)) { status = icon; break; }
+    }
+  } else {
+    // Try first line as status
+    const firstLine = trimmed.split('\n')[0].trim();
+    for (const [heb, icon] of Object.entries(statusMap)) {
+      if (firstLine.includes(heb)) { status = icon; break; }
+    }
+  }
+
+  // Extract explanation from הסבר: line
+  const explainMatch = trimmed.match(/הסבר\s*:\s*(.+)/);
+  if (explainMatch) {
+    summary = explainMatch[1].trim();
+  }
+
+  // Extract quoted evidence
+  const quoteRegex = /"([^"]+)"/g;
+  let m;
+  while ((m = quoteRegex.exec(trimmed)) !== null) {
+    evidence.push(m[1]);
+  }
+
+  // Detect critical flag
+  if (/קריטי/.test(trimmed)) {
+    critical = true;
+  }
+
+  return {
+    status,
+    summary,
+    evidence,
+    ...(critical ? { critical: true } : {}),
+    rawText: trimmed
+  };
+}
+
+// Normalize AI status text to a canonical Hebrew status string
+function normalizeAiStatus(text) {
+  if (!text || typeof text !== 'string') return text || '';
+  const trimmed = text.trim();
+  if (trimmed === 'תקין' || trimmed === 'לא תקין' || trimmed === 'טעון שיפור') return trimmed;
+  if (trimmed.includes('לא תקין')) return 'לא תקין';
+  if (trimmed.includes('טעון שיפור')) return 'טעון שיפור';
+  if (trimmed.includes('תקין')) return 'תקין';
+  return trimmed;
+}
+
 // Map sheet rows to our dashboard schema
-function mapRowToRecord(row) {
+function mapRowToRecord(row, isAiFormat = false) {
   const rowKeys = Object.keys(row);
   const normalizedKeyToOriginal = new Map();
   for (const k of rowKeys) {
@@ -144,6 +223,16 @@ function mapRowToRecord(row) {
       }
     }
     return '';
+  };
+
+  // AI-aware getter: when isAiFormat, tries (AI) prefixed keys first
+  const getAI = (...keys) => {
+    if (isAiFormat) {
+      const aiKeys = keys.map(k => `(AI) ${k}`);
+      const aiResult = get(...aiKeys);
+      if (aiResult !== '') return aiResult;
+    }
+    return get(...keys);
   };
 
   function getByTerms(requiredTermsGroups) {
@@ -181,7 +270,7 @@ function mapRowToRecord(row) {
     return '';
   }
 
-  const rawDate = get('birthDate', 'BirthDate', 'תאריך לידה', 'תאריך-לידה', 'תאריך: לידה');
+  const rawDate = getAI('birthDate', 'BirthDate', 'תאריך לידה', 'תאריך-לידה', 'תאריך: לידה');
   const normalizedDate = (() => {
     if (!rawDate) return '';
     if (rawDate instanceof Date) {
@@ -196,14 +285,15 @@ function mapRowToRecord(row) {
     'subscriberId', 'SubscriberId', 'subscriber_id',
     'מספר מנוי', 'מנוי', 'מספר_מנוי',
     'customerId', 'CustomerId', 'customer_id',
-    'מספר לקוח', 'לקוח', 'מזהה מנוי', 'מזהה לקוח'
-  ) || getByAnyTerm(['מנוי', 'subscriber', 'customer']);
+    'מספר לקוח', 'לקוח', 'מזהה מנוי', 'מזהה לקוח',
+    "מס' לקוח", 'מס לקוח'
+  ) || getByAnyTerm(['מנוי', 'subscriber', 'customer', 'לקוח']);
 
   const record = {
     fileName: get('fileName', 'FileName', 'שם קובץ', 'שם הקובץ', 'קובץ'),
     subscriberId: String(rawSubscriberId || '').trim(),
-    status: get('status', 'Status', 'סטטוס', 'סטטוס סופי'),
-    methods: get(
+    status: getAI('status', 'Status', 'סטטוס', 'סטטוס סופי'),
+    methods: getAI(
       'methods', 'Methods', 'method',
       'שיטות', 'שיטה',
       'שיטות הסבר', 'הסבר שיטות', 'הסבר-שיטות', 'הסבר: שיטות', 'הסברשיטות',
@@ -212,7 +302,7 @@ function mapRowToRecord(row) {
       ['הסבר','explanation'],
       ['שיטה','שיטות','method','methods']
     ]) || getByAnyTerm(['שיטה','שיטות','method','methods']),
-    charge: get(
+    charge: getAI(
       'charge', 'Charge',
       'חיוב', 'הסבר חיוב', 'הסבר-חיוב', 'הסבר: חיוב', 'הסברחיוב',
       'charge explanation', 'explanation charge'
@@ -220,21 +310,21 @@ function mapRowToRecord(row) {
       ['הסבר','explanation'],
       ['חיוב','חיובים','charge','charges']
     ]),
-    address: get('address', 'Address', 'כתובת'),
+    address: getAI('address', 'Address', 'כתובת'),
     birthDate: normalizedDate,
-    winPromise: get(
+    winPromise: getAI(
       'winPromise', 'WinPromise', 'הבטחת זכייה', 'הבטחת זכיה', 'הבטחה לזכייה', 'הבטחה לזכיה', 'זכייה', 'זכיה'
     ) || getByTerms([
       ['הבטחה','הבטחת','promise'],
       ['זכיה','זכייה','win','winning','prize']
     ]),
-    credit: get(
+    credit: getAI(
       'credit', 'Credit', 'אשראי', 'כרטיס אשראי', 'מספר אשראי', 'credit card', 'card', 'cc'
     ) || getByTerms([
       ['אשראי','credit'],
       ['כרטיס','card','cc']
     ]),
-    reflection: get(
+    reflection: getAI(
       'reflection', 'Reflection', 'שיקוף שיחה', 'שיקוף', 'שיקוף-שיחה', 'שיקוף: שיחה'
     ) || getByTerms([
       ['שיקוף','reflection'],
@@ -259,6 +349,22 @@ function mapRowToRecord(row) {
   }
   if (Object.keys(extras).length > 0) {
     record.extras = extras;
+  }
+
+  // Post-processing for AI format: parse rich text fields into structured objects
+  if (isAiFormat) {
+    const qaFields = ['methods', 'charge', 'address', 'birthDate', 'winPromise', 'credit', 'reflection'];
+    for (const field of qaFields) {
+      const val = record[field];
+      if (typeof val === 'string' && val.length > 10) {
+        record[field] = parseAiFieldContent(val);
+      }
+    }
+    // Normalize status to canonical Hebrew
+    if (typeof record.status === 'string') {
+      record.status = normalizeAiStatus(record.status);
+    }
+    record.sourceFormat = 'ai';
   }
 
   return record;
@@ -419,7 +525,10 @@ app.post('/api/upload-excel', upload.single('file'), (req, res) => {
     const sheet = workbook.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
 
-    const records = rows.map(mapRowToRecord);
+    const isAiFormat = detectAiFormat(sheetName, rows[0] || {});
+    console.log(`[Excel Upload] File: ${req.file.originalname}, Format: ${isAiFormat ? 'AI' : 'Human'}, Rows: ${rows.length}`);
+
+    const records = rows.map(r => mapRowToRecord(r, isAiFormat));
 
     // Build header debug info from the first row's keys
     const firstRow = rows[0] || {};
@@ -470,7 +579,8 @@ app.post('/api/upload-excel', upload.single('file'), (req, res) => {
       name,
       createdAt,
       records,
-      fields
+      fields,
+      formatType: isAiFormat ? 'ai' : 'human'
     };
 
     const stats = computeDatasetStats(records);
@@ -487,7 +597,8 @@ app.post('/api/upload-excel', upload.single('file'), (req, res) => {
       },
       debug: {
         originalHeaders,
-        matched: { methods: matchedMethodsHeader, charge: matchedChargeHeader }
+        matched: { methods: matchedMethodsHeader, charge: matchedChargeHeader },
+        formatType: isAiFormat ? 'ai' : 'human'
       }
     });
   } catch (err) {
@@ -1037,9 +1148,14 @@ app.get('/', (_req, res) => {
   res.sendFile(path.join(__dirname, 'dashboard.html'));
 });
 
-app.listen(port, () => {
-  console.log(`Server listening on http://localhost:${port}`);
-  console.log(`[Config] N8N_WEBHOOK_URL: ${process.env.N8N_WEBHOOK_URL || 'NOT SET'}`);
-});
+// Only start listening when running directly (not on Vercel serverless)
+if (!process.env.VERCEL) {
+  app.listen(port, () => {
+    console.log(`Server listening on http://localhost:${port}`);
+    console.log(`[Config] N8N_WEBHOOK_URL: ${process.env.N8N_WEBHOOK_URL || 'NOT SET'}`);
+  });
+}
+
+export default app;
 
 
