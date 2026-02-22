@@ -5,6 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>דשבורד ניהול קבצי אודיו</title>
     <style>
+        :root {
+            --c-primary: #3a6ea5;
+            --c-primary-hover: #2a5a8a;
+            --c-success-bg: #c6f6d5; --c-success-text: #22543d; --c-success-accent: #38a169; --c-success-surface: #f0fff4;
+            --c-warning-bg: #fef3c7; --c-warning-text: #92400e; --c-warning-accent: #d69e2e;
+            --c-error-bg: #fed7d7; --c-error-text: #9b2c2c; --c-error-accent: #e53e3e; --c-error-surface: #fff5f5;
+            --c-ai-blue: #3182ce; --c-ai-bg: #ebf5ff;
+            --c-human-gold: #d69e2e; --c-human-bg: #fef3c7;
+            --c-text-primary: #2d3748; --c-text-secondary: #4a5568; --c-text-muted: #718096; --c-text-faint: #a0aec0;
+            --c-border: #e2e8f0; --c-bg-light: #f7fafc; --c-bg-subtle: #edf2f7;
+            --r-sm: 8px; --r-md: 10px; --r-lg: 14px; --r-xl: 20px;
+            --shadow-sm: 0 2px 8px rgba(0,0,0,.06);
+            --shadow-md: 0 10px 30px rgba(0,0,0,.1);
+            --shadow-lg: 0 20px 60px rgba(0,0,0,.2);
+            --shadow-hover: 0 4px 12px rgba(0,0,0,.08);
+        }
         * {
             margin: 0;
             padding: 0;
@@ -428,18 +444,18 @@
         }
 
         .status-badge.success {
-            background: #c6f6d5;
-            color: #22543d;
+            background: var(--c-success-bg);
+            color: var(--c-success-text);
         }
 
         .status-badge.warning {
-            background: #fed7aa;
-            color: #7c2d12;
+            background: var(--c-warning-bg);
+            color: var(--c-warning-text);
         }
 
         .status-badge.error {
-            background: #fed7d7;
-            color: #742a2a;
+            background: var(--c-error-bg);
+            color: var(--c-error-text);
         }
 
         .action-buttons {
@@ -890,8 +906,8 @@
             gap: 14px; margin-bottom: 24px;
         }
         .compare-summary-card {
-            background: #fff; border-radius: 14px; padding: 18px; text-align: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,.06); border: 2px solid transparent; transition: .2s;
+            background: #fff; border-radius: var(--r-lg); padding: 18px; text-align: center;
+            box-shadow: var(--shadow-sm); border: 2px solid transparent; transition: .2s;
         }
         .compare-summary-card:hover { border-color: #e2e8f0; }
         .compare-summary-card .csc-value { font-size: 2rem; font-weight: 800; }
@@ -914,14 +930,14 @@
             gap: 12px; margin-bottom: 24px;
         }
         .section-accuracy-card {
-            background: #fff; border-radius: 12px; padding: 14px; box-shadow: 0 2px 6px rgba(0,0,0,.05);
+            background: #fff; border-radius: var(--r-lg); padding: 14px; box-shadow: var(--shadow-sm);
         }
         .section-accuracy-card .sa-label { font-size: 14px; font-weight: 600; color: #2d3748; margin-bottom: 6px; }
         .section-accuracy-card .sa-value { font-size: 1.5rem; font-weight: 800; }
 
         .compare-records-table {
             width: 100%; border-collapse: separate; border-spacing: 0;
-            background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.06);
+            background: #fff; border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-sm);
         }
         .compare-records-table th {
             background: #f7fafc; padding: 12px 14px; font-size: 13px; color: #4a5568;
@@ -944,7 +960,7 @@
         }
         .drill-modal-overlay.active { opacity: 1; pointer-events: auto; }
         .drill-modal {
-            background: #fff; border-radius: 18px; max-width: 900px; width: 95%; max-height: 85vh;
+            background: #fff; border-radius: var(--r-xl); max-width: 900px; width: 95%; max-height: 85vh;
             overflow-y: auto; padding: 30px; box-shadow: 0 20px 60px rgba(0,0,0,.2); position: relative;
         }
         .drill-modal .close-btn {
@@ -965,8 +981,8 @@
         .drill-section-header .match-badge {
             padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700;
         }
-        .match-badge.agree { background: #c6f6d5; color: #276749; }
-        .match-badge.disagree { background: #fed7d7; color: #9b2c2c; }
+        .match-badge.agree { background: var(--c-success-bg); color: var(--c-success-text); }
+        .match-badge.disagree { background: var(--c-error-bg); color: var(--c-error-text); }
         .drill-side-by-side {
             display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
         }
@@ -1004,10 +1020,10 @@
         .fd-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 2px solid #e2e8f0; }
         .fd-check-name { font-size: 1.15rem; font-weight: 700; color: #2d3748; }
         .fd-status-lg { font-size: 1.4rem; padding: 8px 20px; border-radius: 12px; font-weight: 800; display: inline-block; }
-        .fd-status-lg.success { background: #c6f6d5; color: #22543d; }
-        .fd-status-lg.warning { background: #fef3c7; color: #92400e; }
-        .fd-status-lg.error { background: #fed7d7; color: #991b1b; }
-        .fd-status-lg.unknown { background: #edf2f7; color: #718096; }
+        .fd-status-lg.success { background: var(--c-success-bg); color: var(--c-success-text); }
+        .fd-status-lg.warning { background: var(--c-warning-bg); color: var(--c-warning-text); }
+        .fd-status-lg.error { background: var(--c-error-bg); color: var(--c-error-text); }
+        .fd-status-lg.unknown { background: var(--c-bg-subtle); color: var(--c-text-muted); }
         .fd-critical-banner {
             background: linear-gradient(135deg, #fff5f5, #fed7d7);
             border: 2px solid #fc8181; color: #c53030;
@@ -1038,7 +1054,7 @@
         .fd-value-box {
             background: #f0fff4; border: 1px solid #c6f6d5;
             border-radius: 10px; padding: 12px 16px; margin-bottom: 14px;
-            font-weight: 600; color: #276749;
+            font-weight: 600; color: var(--c-success-text);
         }
         .fd-details-grid {
             background: #f7fafc; border-radius: 10px; padding: 14px 18px;
@@ -1067,9 +1083,9 @@
         .fd-count-chip {
             padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 700;
         }
-        .fd-count-chip.pass { background: #c6f6d5; color: #22543d; }
-        .fd-count-chip.fail { background: #fed7d7; color: #991b1b; }
-        .fd-count-chip.improve { background: #fef3c7; color: #92400e; }
+        .fd-count-chip.pass { background: var(--c-success-bg); color: var(--c-success-text); }
+        .fd-count-chip.fail { background: var(--c-error-bg); color: var(--c-error-text); }
+        .fd-count-chip.improve { background: var(--c-warning-bg); color: var(--c-warning-text); }
         /* Field card critical dot */
         .fd-card-critical::after {
             content: ''; display: inline-block; width: 8px; height: 8px;
@@ -1079,6 +1095,100 @@
         .drill-side .side-evidence li {
             display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap;
         }
+        /* === Utility Classes === */
+        .mt-lg { margin-top: 16px; }
+        .text-secondary { color: var(--c-text-secondary); }
+        .text-error { color: var(--c-error-accent); }
+        .text-faint { color: var(--c-text-faint); }
+        /* === showFieldDetails classes === */
+        .fd-file-info { margin-bottom: 20px; }
+        .fd-transcript-box {
+            background: var(--c-bg-light); padding: 15px; border-radius: var(--r-sm);
+            max-height: 400px; overflow-y: auto; text-align: right; white-space: pre-wrap;
+        }
+        .fd-timestamp-box {
+            margin-top: 15px; padding: 10px;
+            background: var(--c-bg-subtle); border-radius: var(--r-sm);
+        }
+        .fd-evidence-heading {
+            margin-bottom: 8px; font-weight: 700; color: var(--c-text-secondary);
+        }
+        .fd-evidence-section { margin-top: 20px; }
+        .fd-evidence-section h3 { color: var(--c-text-secondary); margin-bottom: 10px; }
+        .fd-plain-box {
+            background: var(--c-bg-light); padding: 15px; border-radius: var(--r-sm);
+        }
+        .status-badge--lg { font-size: 1.2em; margin-bottom: 15px; }
+        /* === viewFullRecord classes === */
+        .vfr-subscriber-info { margin-bottom: 12px; }
+        .vfr-overall-status { margin-bottom: 16px; }
+        .vfr-field-grid { display: grid; gap: 12px; }
+        .vfr-field-card {
+            background: var(--c-bg-light); padding: 12px; border-radius: var(--r-sm);
+            cursor: pointer; transition: background .2s, box-shadow .2s;
+        }
+        .vfr-field-card:hover { background: var(--c-bg-subtle); box-shadow: var(--shadow-hover); }
+        .vfr-field-card--critical { border-right: 4px solid var(--c-error-accent); }
+        /* === renderCompareResults classes === */
+        .cmp-section-heading { color: var(--c-text-primary); margin-bottom: 12px; font-size: 16px; }
+        .cmp-records-heading { color: var(--c-text-primary); margin: 20px 0 12px; font-size: 16px; }
+        .cmp-unmatched-heading { color: var(--c-error-accent); margin: 20px 0 12px; font-size: 16px; }
+        .cmp-unmatched-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+        .cmp-unmatched-item {
+            background: var(--c-error-surface); border: 1px solid var(--c-error-bg);
+            border-radius: var(--r-sm); padding: 8px 14px; font-size: 13px;
+        }
+        .cmp-ratio-badge {
+            display: inline-block; padding: 4px 10px; border-radius: var(--r-xl);
+            font-size: 13px; font-weight: 700;
+        }
+        .cmp-ratio-badge.green { color: var(--c-success-accent); background: var(--c-success-surface); border: 1px solid rgba(56,161,105,.13); }
+        .cmp-ratio-badge.yellow { color: var(--c-warning-accent); background: #fffff0; border: 1px solid rgba(214,158,46,.13); }
+        .cmp-ratio-badge.red { color: var(--c-error-accent); background: var(--c-error-surface); border: 1px solid rgba(229,62,62,.13); }
+        .cmp-meta-note { font-size: 11px; color: var(--c-text-muted); margin-top: 4px; }
+        .cmp-filter-note { font-size: 12px; color: var(--c-text-muted); }
+        .sa-value--green { color: var(--c-success-accent); }
+        .sa-value--yellow { color: var(--c-warning-accent); }
+        .sa-value--red { color: var(--c-error-accent); }
+        .sa-matches-note { font-size: 12px; color: var(--c-text-faint); }
+        /* === openDrill classes === */
+        .drill-title { margin-bottom: 6px; color: var(--c-text-primary); }
+        .drill-meta { margin-bottom: 18px; color: var(--c-text-muted); font-size: 14px; }
+        .drill-status-row { display: flex; gap: 14px; margin-bottom: 20px; flex-wrap: wrap; }
+        .drill-status-card {
+            flex: 1; min-width: 200px; border-radius: var(--r-md);
+            padding: 14px; text-align: center;
+        }
+        .drill-status-card--ai { background: var(--c-ai-bg); }
+        .drill-status-card--human { background: var(--c-human-bg); }
+        .drill-status-card--match { background: var(--c-success-surface); }
+        .drill-status-card--mismatch { background: var(--c-error-surface); }
+        .drill-status-label { font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+        .drill-status-label--ai { color: var(--c-ai-blue); }
+        .drill-status-label--human { color: var(--c-human-gold); }
+        .drill-status-label--neutral { color: var(--c-text-secondary); }
+        .drill-status-value { font-size: 1.2rem; }
+        .drill-summary-value { font-size: 1.1rem; font-weight: 700; }
+        /* === Hover/transition on premium components === */
+        .fd-details-grid { transition: box-shadow .2s; }
+        .fd-details-grid:hover { box-shadow: var(--shadow-hover); }
+        .fd-value-box { transition: box-shadow .2s; }
+        .fd-value-box:hover { box-shadow: var(--shadow-hover); }
+        .fd-meta-bar { transition: background .2s; }
+        .fd-meta-bar:hover { background: var(--c-bg-subtle); }
+        /* === Audio result classes === */
+        .result-field { margin-bottom: 10px; }
+        .result-field-lg { margin-bottom: 15px; }
+        .result-preview-box {
+            background: white; padding: 10px; border-radius: 5px; margin-top: 5px;
+            max-height: 200px; overflow-y: auto; text-align: right; white-space: pre-wrap;
+        }
+        .result-method-box { background: white; padding: 10px; border-radius: 5px; margin-top: 5px; }
+        .result-issues-list { text-align: right; margin-top: 5px; }
+        .result-saved-banner {
+            margin-top: 20px; padding: 15px; background: #e6fffa;
+            border-radius: var(--r-sm); border-left: 4px solid #38b2ac;
+        }
     </style>
 </head>
 <body>
@@ -1086,7 +1196,7 @@
         <!-- Header -->
         <div class="header">
             <h1>מערכת ניהול קבצי אודיו</h1>
-            <p style="color: #4a5568;">ניהול וניתוח מתקדם של קבצי שיחות</p>
+            <p class="text-secondary">ניהול וניתוח מתקדם של קבצי שיחות</p>
         </div>
 
         <!-- Statistics Cards -->
@@ -1205,7 +1315,7 @@
                 <canvas id="analyticsChart" height="120"></canvas>
             </div>
             <div class="pivot-container">
-                <div style="font-weight:600;color:#4a5568;margin-bottom:10px">Pivot</div>
+                <div class="fd-evidence-heading">Pivot</div>
                 <div id="pivotTable"></div>
             </div>
         </div>
@@ -1605,7 +1715,7 @@
                     c += `<div class="fd-explanation">${escapeHtml(field.summary)}</div>`;
                 }
                 if (field.evidence && field.evidence.length > 0) {
-                    c += `<div style="margin-bottom:8px;font-weight:700;color:#4a5568">📝 ראיות מהשיחה:</div>`;
+                    c += `<div class="fd-evidence-heading">📝 ראיות מהשיחה:</div>`;
                     c += `<div class="fd-evidence-list">`;
                     field.evidence.forEach(e => {
                         c += `<div class="fd-evidence-card">${renderEvidenceItem(e)}</div>`;
@@ -1631,18 +1741,18 @@
 
             // Standard paths (transcript, JSON-import objects, plain strings)
             let content = `<h2>${fieldNames[fieldName] || fieldName}</h2>`;
-            content += `<div style="margin-bottom: 20px;"><strong>קובץ:</strong> ${escapeHtml(record.fileName)}</div>`;
+            content += `<div class="fd-file-info"><strong>קובץ:</strong> ${escapeHtml(record.fileName)}</div>`;
 
             if (fieldName === 'transcript') {
-                content += `<div style="background: #f7fafc; padding: 15px; border-radius: 8px; max-height: 400px; overflow-y: auto; text-align: right; white-space: pre-wrap;">${escapeHtml(record.transcript || 'אין תמלול')}</div>`;
+                content += `<div class="fd-transcript-box">${escapeHtml(record.transcript || 'אין תמלול')}</div>`;
             } else if (typeof field === 'object' && field !== null) {
                 if (field.critical) {
                     content += `<div class="fd-critical-banner">⚠️ כשל קריטי</div>`;
                 }
-                content += `<div class="status-badge ${getStatusClass(field.status)}" style="font-size: 1.2em; margin-bottom: 15px;">${field.status} ${field.summary || ''}</div>`;
+                content += `<div class="status-badge status-badge--lg ${getStatusClass(field.status)}">${field.status} ${field.summary || ''}</div>`;
 
                 if (field.evidence && field.evidence.length > 0) {
-                    content += `<div style="margin-top: 20px;"><h3 style="color: #4a5568; margin-bottom: 10px;">📝 ציטוטים מהשיחה:</h3>`;
+                    content += `<div class="fd-evidence-section"><h3>📝 ציטוטים מהשיחה:</h3>`;
                     content += `<div class="fd-evidence-list">`;
                     field.evidence.forEach(e => {
                         content += `<div class="fd-evidence-card">${renderEvidenceItem(e)}</div>`;
@@ -1651,18 +1761,18 @@
                 }
 
                 if (field.timestamp) {
-                    content += `<div style="margin-top: 15px; padding: 10px; background: #edf2f7; border-radius: 6px;"><strong>⏱️ זמן בשיחה:</strong> ${escapeHtml(field.timestamp)}</div>`;
+                    content += `<div class="fd-timestamp-box"><strong>⏱️ זמן בשיחה:</strong> ${escapeHtml(field.timestamp)}</div>`;
                 }
 
                 if (field.details) {
-                    content += `<div class="fd-details-grid" style="margin-top: 15px;">`;
+                    content += `<div class="fd-details-grid mt-lg">`;
                     for (const [key, value] of Object.entries(field.details)) {
                         if (value) content += `<div class="fd-detail-row"><span class="fd-detail-label">${escapeHtml(key)}:</span><span class="fd-detail-val">${escapeHtml(String(value))}</span></div>`;
                     }
                     content += `</div>`;
                 }
             } else {
-                content += `<div style="background: #f7fafc; padding: 15px; border-radius: 8px;">${escapeHtml(String(field || 'אין מידע'))}</div>`;
+                content += `<div class="fd-plain-box">${escapeHtml(String(field || 'אין מידע'))}</div>`;
             }
 
             showCustomModal(content);
@@ -1678,7 +1788,7 @@
         function viewFullRecord(index) {
             const record = filteredData[index];
             let content = `<h2>פרטי רשומה מלאים</h2>`;
-            content += `<div style="margin-bottom:12px"><strong>מספר מנוי:</strong> ${escapeHtml(record.subscriberId || '-')} &nbsp;|&nbsp; <strong>שם קובץ:</strong> ${escapeHtml(record.fileName)}</div>`;
+            content += `<div class="vfr-subscriber-info"><strong>מספר מנוי:</strong> ${escapeHtml(record.subscriberId || '-')} &nbsp;|&nbsp; <strong>שם קובץ:</strong> ${escapeHtml(record.fileName)}</div>`;
 
             if (record.meta) {
                 const m = record.meta;
@@ -1700,7 +1810,7 @@
                 }
             }
 
-            content += `<div style="margin-bottom:16px"><strong>סטטוס כללי:</strong> ${getStatusBadge(record.status)}</div>`;
+            content += `<div class="vfr-overall-status"><strong>סטטוס כללי:</strong> ${getStatusBadge(record.status)}</div>`;
 
             const fields = [
                 { key: 'methods', label: 'הסבר שיטות' },
@@ -1712,14 +1822,14 @@
                 { key: 'reflection', label: 'שיקוף שיחה' }
             ];
 
-            content += `<div style="display:grid;gap:12px">`;
+            content += `<div class="vfr-field-grid">`;
             fields.forEach(({ key, label }) => {
                 const field = record[key];
                 const status = typeof field === 'object' ? field.status : getFieldStatusIcon(field);
                 const summary = typeof field === 'object' ? (field.summary || '') : (typeof field === 'string' ? field : '');
                 const isCritical = typeof field === 'object' && field.critical;
-                content += `<div style="background:#f7fafc;padding:12px;border-radius:8px;cursor:pointer;${isCritical ? 'border-right:4px solid #e53e3e;' : ''}" onclick="showFieldDetails(${index}, '${key}')">
-                    <strong>${status} ${label}${isCritical ? ' <span style="color:#e53e3e">●</span>' : ''}:</strong> ${escapeHtml(String(summary).substring(0, 80))}${String(summary).length > 80 ? '...' : ''}
+                content += `<div class="vfr-field-card${isCritical ? ' vfr-field-card--critical' : ''}" onclick="showFieldDetails(${index}, '${key}')">
+                    <strong>${status} ${label}${isCritical ? ' <span class="text-error">●</span>' : ''}:</strong> ${escapeHtml(String(summary).substring(0, 80))}${String(summary).length > 80 ? '...' : ''}
                 </div>`;
             });
             content += `</div>`;
@@ -2415,30 +2525,30 @@
             document.getElementById('cancelBtn').style.display = 'none';
             
             const details = document.getElementById('resultDetails');
-            let html = '<div style="margin-bottom: 15px;"><strong>שם הקובץ:</strong> ' + escapeHtml(result.fileName || 'unknown') + '</div>';
-            
+            let html = '<div class="result-field-lg"><strong>שם הקובץ:</strong> ' + escapeHtml(result.fileName || 'unknown') + '</div>';
+
             if (result.status) {
-                html += '<div style="margin-bottom: 10px;"><strong>סטטוס:</strong> ' + getStatusBadge(result.status) + '</div>';
+                html += '<div class="result-field"><strong>סטטוס:</strong> ' + getStatusBadge(result.status) + '</div>';
             }
-            
+
             if (result.transcript) {
                 const transcriptPreview = escapeHtml(result.transcript).substring(0, 500);
-                html += '<div style="margin-bottom: 10px;"><strong>תמלול:</strong><div style="background: white; padding: 10px; border-radius: 5px; margin-top: 5px; max-height: 200px; overflow-y: auto; text-align: right; white-space: pre-wrap;">' + transcriptPreview + (result.transcript.length > 500 ? '...' : '') + '</div></div>';
+                html += '<div class="result-field"><strong>תמלול:</strong><div class="result-preview-box">' + transcriptPreview + (result.transcript.length > 500 ? '...' : '') + '</div></div>';
             }
-            
+
             if (result.methods) {
-                html += '<div style="margin-bottom: 10px;"><strong>שיטות שזוהו:</strong><div style="background: white; padding: 10px; border-radius: 5px; margin-top: 5px;">' + escapeHtml(String(result.methods)) + '</div></div>';
+                html += '<div class="result-field"><strong>שיטות שזוהו:</strong><div class="result-method-box">' + escapeHtml(String(result.methods)) + '</div></div>';
             }
-            
+
             if (result.issues && result.issues.length > 0) {
-                html += '<div style="margin-bottom: 10px;"><strong>בעיות שזוהו:</strong><ul style="text-align: right; margin-top: 5px;">';
+                html += '<div class="result-field"><strong>בעיות שזוהו:</strong><ul class="result-issues-list">';
                 result.issues.forEach(issue => {
                     html += '<li>' + escapeHtml(issue) + '</li>';
                 });
                 html += '</ul></div>';
             }
-            
-            html += '<div style="margin-top: 20px; padding: 15px; background: #e6fffa; border-radius: 8px; border-left: 4px solid #38b2ac;"><strong>✓ הנתונים נשמרו בדשבורד</strong><br><small>ניתן לצפות בהם בטבלה הראשית</small></div>';
+
+            html += '<div class="result-saved-banner"><strong>✓ הנתונים נשמרו בדשבורד</strong><br><small>ניתן לצפות בהם בטבלה הראשית</small></div>';
             
             details.innerHTML = html;
 
@@ -2704,7 +2814,7 @@
 
             let html = `<div class="compare-summary-grid">
                 <div class="compare-summary-card blue"><div class="csc-value">${s.totalCompared}</div><div class="csc-label">רשומות הושוו</div>
-                    ${matchMethodText ? `<div style="font-size:11px;color:#718096;margin-top:4px">${matchMethodText}</div>` : ''}
+                    ${matchMethodText ? `<div class="cmp-meta-note">${matchMethodText}</div>` : ''}
                 </div>
                 <div class="compare-summary-card ${meterColor(s.overallStatusAccuracy || 0)}">
                     <div class="csc-value">${s.overallStatusAccuracy !== null ? s.overallStatusAccuracy + '%' : '-'}</div>
@@ -2723,15 +2833,15 @@
             </div>`;
 
             // --- Per-section accuracy cards ---
-            html += `<h3 style="color:#2d3748;margin-bottom:12px;font-size:16px">📊 דיוק לפי סעיף</h3>`;
+            html += `<h3 class="cmp-section-heading">📊 דיוק לפי סעיף</h3>`;
             html += `<div class="section-accuracy-grid">`;
             for (const [key, sa] of Object.entries(s.sectionAccuracy)) {
                 const pct = sa.accuracy !== null ? sa.accuracy : 0;
                 const col = meterColor(pct);
                 html += `<div class="section-accuracy-card">
                     <div class="sa-label">${escapeHtml(sa.label)}</div>
-                    <div class="sa-value" style="color:var(--c-${col},${col === 'green' ? '#38a169' : col === 'yellow' ? '#d69e2e' : '#e53e3e'})">${sa.accuracy !== null ? sa.accuracy + '%' : '-'}</div>
-                    <div style="font-size:12px;color:#a0aec0">${sa.matches}/${sa.total} התאמות</div>
+                    <div class="sa-value sa-value--${col}">${sa.accuracy !== null ? sa.accuracy + '%' : '-'}</div>
+                    <div class="sa-matches-note">${sa.matches}/${sa.total} התאמות</div>
                     <div class="accuracy-meter"><div class="fill ${col}" style="width:${pct}%"></div></div>
                 </div>`;
             }
@@ -2743,10 +2853,10 @@
             lastFilteredMatched = matched;
 
             const isFiltered = currentFilter !== 'all' || searchTerm;
-            const filterNote = isFiltered ? ` <span style="font-size:12px;color:#718096">— מסונן</span>` : '';
+            const filterNote = isFiltered ? ` <span class="cmp-filter-note">— מסונן</span>` : '';
 
             if (matched.length > 0) {
-                html += `<h3 style="color:#2d3748;margin:20px 0 12px;font-size:16px">📋 השוואת רשומות (${matched.length})${filterNote}</h3>`;
+                html += `<h3 class="cmp-records-heading">📋 השוואת רשומות (${matched.length})${filterNote}</h3>`;
                 html += `<div class="table-container"><table class="compare-records-table"><thead><tr>
                     <th>מספר מנוי</th>
                     <th>סטטוס AI 🤖</th>
@@ -2762,14 +2872,13 @@
                     let secMatch = 0, secTotal = 0;
                     sectionKeys.forEach(k => { if (c.sections[k]) { secTotal++; if (c.sections[k].match) secMatch++; } });
                     const secPct = secTotal > 0 ? Math.round((secMatch / secTotal) * 100) : 0;
-                    const ratioColor = secPct === 100 ? '#38a169' : secPct >= 70 ? '#d69e2e' : '#e53e3e';
-                    const ratioBg = secPct === 100 ? '#f0fff4' : secPct >= 70 ? '#fffff0' : '#fff5f5';
+                    const ratioClass = secPct === 100 ? 'green' : secPct >= 70 ? 'yellow' : 'red';
                     html += `<tr>
                         <td><strong>${escapeHtml(c.subscriberId || '-')}</strong></td>
                         <td>${getStatusBadge(c.overallA)}</td>
                         <td>${getStatusBadge(c.overallB)}</td>
                         <td style="text-align:center">
-                            <span style="display:inline-block;padding:4px 10px;border-radius:20px;font-size:13px;font-weight:700;color:${ratioColor};background:${ratioBg};border:1px solid ${ratioColor}20">${secMatch}/${secTotal}</span>
+                            <span class="cmp-ratio-badge ${ratioClass}">${secMatch}/${secTotal}</span>
                         </td>`;
                     sectionKeys.forEach(k => {
                         const sec = c.sections[k];
@@ -2782,12 +2891,12 @@
             }
 
             if (unmatched.length > 0) {
-                html += `<h3 style="color:#e53e3e;margin:20px 0 12px;font-size:16px">⚠️ רשומות ללא התאמה (${unmatched.length})</h3>`;
-                html += `<div style="display:flex;flex-wrap:wrap;gap:8px">`;
+                html += `<h3 class="cmp-unmatched-heading">⚠️ רשומות ללא התאמה (${unmatched.length})</h3>`;
+                html += `<div class="cmp-unmatched-grid">`;
                 unmatched.forEach(c => {
                     const label = c.subscriberId ? `מנוי ${escapeHtml(c.subscriberId)}` : escapeHtml(c.fileName);
-                    html += `<div style="background:#fff5f5;border:1px solid #fed7d7;border-radius:8px;padding:8px 14px;font-size:13px">
-                        <strong>${label}</strong> <span style="color:#a0aec0">— לא נמצא ב-Dataset B</span>
+                    html += `<div class="cmp-unmatched-item">
+                        <strong>${label}</strong> <span class="text-faint">— לא נמצא ב-Dataset B</span>
                     </div>`;
                 });
                 html += `</div>`;
@@ -2807,27 +2916,27 @@
             sectionKeys.forEach(k => { if (c.sections[k]) { totalSections++; if (c.sections[k].match) matchCount++; } });
 
             let html = `<button class="close-btn" onclick="closeDrill()">✕</button>`;
-            html += `<h2 style="margin-bottom:6px;color:#2d3748">🔎 השוואה מפורטת</h2>`;
-            html += `<div style="margin-bottom:18px;color:#718096;font-size:14px">`;
+            html += `<h2 class="drill-title">🔎 השוואה מפורטת</h2>`;
+            html += `<div class="drill-meta">`;
             if (c.subscriberId) html += `<strong>מספר מנוי:</strong> ${escapeHtml(c.subscriberId)} &nbsp;|&nbsp; `;
             html += `<strong>קובץ A:</strong> ${escapeHtml(c.fileName)}`;
             if (c.fileNameB && c.fileNameB !== c.fileName) html += ` &nbsp;|&nbsp; <strong>קובץ B:</strong> ${escapeHtml(c.fileNameB)}`;
-            if (c.matchedBy) html += ` &nbsp;|&nbsp; <span style="color:${c.matchedBy === 'subscriberId' ? '#3182ce' : '#718096'}">התאמה לפי: ${c.matchedBy === 'subscriberId' ? '🔑 מספר מנוי' : '📄 שם קובץ'}</span>`;
+            if (c.matchedBy) html += ` &nbsp;|&nbsp; <span class="${c.matchedBy === 'subscriberId' ? 'drill-status-label--ai' : 'text-muted'}">התאמה לפי: ${c.matchedBy === 'subscriberId' ? '🔑 מספר מנוי' : '📄 שם קובץ'}</span>`;
             html += `</div>`;
 
             // Overall status comparison
-            html += `<div style="display:flex;gap:14px;margin-bottom:20px;flex-wrap:wrap">
-                <div style="flex:1;min-width:200px;background:#ebf5ff;border-radius:12px;padding:14px;text-align:center">
-                    <div style="font-size:12px;font-weight:700;color:#3182ce;margin-bottom:6px">🤖 AI</div>
-                    <div style="font-size:1.2rem">${getStatusBadge(c.overallA)}</div>
+            html += `<div class="drill-status-row">
+                <div class="drill-status-card drill-status-card--ai">
+                    <div class="drill-status-label drill-status-label--ai">🤖 AI</div>
+                    <div class="drill-status-value">${getStatusBadge(c.overallA)}</div>
                 </div>
-                <div style="flex:1;min-width:200px;background:#fef3c7;border-radius:12px;padding:14px;text-align:center">
-                    <div style="font-size:12px;font-weight:700;color:#d69e2e;margin-bottom:6px">👤 אנושי</div>
-                    <div style="font-size:1.2rem">${getStatusBadge(c.overallB)}</div>
+                <div class="drill-status-card drill-status-card--human">
+                    <div class="drill-status-label drill-status-label--human">👤 אנושי</div>
+                    <div class="drill-status-value">${getStatusBadge(c.overallB)}</div>
                 </div>
-                <div style="flex:1;min-width:200px;background:${c.overallMatch ? '#f0fff4' : '#fff5f5'};border-radius:12px;padding:14px;text-align:center">
-                    <div style="font-size:12px;font-weight:700;color:#4a5568;margin-bottom:6px">סיכום</div>
-                    <div style="font-size:1.1rem;font-weight:700">${matchCount}/${totalSections} סעיפים תואמים</div>
+                <div class="drill-status-card ${c.overallMatch ? 'drill-status-card--match' : 'drill-status-card--mismatch'}">
+                    <div class="drill-status-label drill-status-label--neutral">סיכום</div>
+                    <div class="drill-summary-value">${matchCount}/${totalSections} סעיפים תואמים</div>
                 </div>
             </div>`;
 
