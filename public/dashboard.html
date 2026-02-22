@@ -2597,9 +2597,6 @@
                 html += `<h3 style="color:#2d3748;margin:20px 0 12px;font-size:16px">📋 השוואת רשומות (${matched.length})${filterNote}</h3>`;
                 html += `<div class="table-container"><table class="compare-records-table"><thead><tr>
                     <th>מספר מנוי</th>
-                    <th>שם קובץ A</th>
-                    <th>שם קובץ B</th>
-                    <th>התאמה לפי</th>
                     <th>סטטוס AI 🤖</th>
                     <th>סטטוס אנושי 👤</th>
                     <th>התאמה כללית</th>`;
@@ -2615,14 +2612,8 @@
                     const secPct = secTotal > 0 ? Math.round((secMatch / secTotal) * 100) : 0;
                     const ratioColor = secPct === 100 ? '#38a169' : secPct >= 70 ? '#d69e2e' : '#e53e3e';
                     const ratioBg = secPct === 100 ? '#f0fff4' : secPct >= 70 ? '#fffff0' : '#fff5f5';
-                    const matchByLabel = '🔑 מנוי';
-                    const matchByColor = '#3182ce';
-
                     html += `<tr>
                         <td><strong>${escapeHtml(c.subscriberId || '-')}</strong></td>
-                        <td style="font-size:12px;color:#4a5568">${escapeHtml(c.fileName)}</td>
-                        <td style="font-size:12px;color:#4a5568">${escapeHtml(c.fileNameB || c.fileName)}</td>
-                        <td style="text-align:center"><span style="font-size:12px;font-weight:600;color:${matchByColor}">${matchByLabel}</span></td>
                         <td>${getStatusBadge(c.overallA)}</td>
                         <td>${getStatusBadge(c.overallB)}</td>
                         <td style="text-align:center">
