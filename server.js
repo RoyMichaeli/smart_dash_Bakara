@@ -655,6 +655,13 @@ app.post('/api/login', (req, res) => {
   res.status(401).json({ error: 'סיסמה שגויה' });
 });
 
+app.get('/api/auth-check', (req, res) => {
+  // Lightweight endpoint for client-side auth guard.
+  // The Express auth middleware already runs before this,
+  // so if we reach here the user is authenticated.
+  res.json({ ok: true });
+});
+
 app.get('/api/logout', (_req, res) => {
   res.setHeader('Set-Cookie', 'qasmart_auth=; Path=/; HttpOnly; Max-Age=0');
   res.redirect('/login.html');

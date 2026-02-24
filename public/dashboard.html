@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>דשבורד ניהול קבצי אודיו</title>
+    <script>
+        // Client-side auth guard — defense in depth.
+        // If the auth cookie is missing, redirect to login immediately.
+        // The cookie is HttpOnly so JS can't read it, but we can ping the server.
+        fetch('/api/auth-check', { credentials: 'same-origin' })
+            .then(r => { if (!r.ok) window.location.replace('/login.html'); })
+            .catch(() => window.location.replace('/login.html'));
+    </script>
     <style>
         :root {
             --c-primary: #3a6ea5;
